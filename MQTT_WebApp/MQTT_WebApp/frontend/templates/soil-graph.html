@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Grafic Sol</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  {% include 'navbar.html' %}
+
+  <div class="container">
+    <h2>Grafic Sol</h2>
+
+    <canvas id="soilChart"></canvas>
+
+    <div class="chart-controls">
+      <button class="chart-button" onclick="setPeriod('1zi')">1 Zi</button>
+      <button class="chart-button" onclick="setPeriod('maxim')">Maxim</button>
+      <button id="back-button" class="chart-button" onclick="goBack()">← Înapoi</button>
+      <button id="forward-button" class="chart-button" onclick="goForward()">Înainte →</button>
+    </div>
+  </div>
+
+  <script>
+    const chartConfig = {
+      canvasId: 'soilChart',
+      sensor: 'soil_moisture',
+      labelPrefix: 'Parcela',
+      unit: '%',
+      colorSet: ['#36A2EB', '#FF6384', '#4BC0C0']
+    };
+  </script>
+  <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+</body>
+</html>

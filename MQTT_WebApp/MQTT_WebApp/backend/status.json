@@ -1,0 +1,13 @@
+{
+  "mod": "ON",
+  "pompa1": "ON",
+  "geam": "ON",
+  "umidificator": "ON",
+  "pompa3": "ON",
+  "pompa2": "OFF",
+  "incalzire1": "0",
+  "incalzire2": "0",
+  "ventilator1": "0",
+  "ventilator2": "0",
+  "lumina": "OFF"
+}

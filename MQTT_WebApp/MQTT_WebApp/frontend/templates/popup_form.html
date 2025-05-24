@@ -1,0 +1,40 @@
+<div id="overlay" class="overlay" onclick="closeCommandPopup()"></div>
+
+<div class="form-popup" id="commandForm">
+  <form class="form-container" onsubmit="submitForm(event)">
+    <h3>Trimite Comenzi</h3>
+
+    <div class="form-row">
+      <label for="temp_day">
+        Temp zi:
+        <span class="info-icon" title="Temperatura ideală ziua. Folosiți un interval recomandat (°C).">ℹ️</span>
+      </label>
+      <input type="text" id="temp_day" required>
+
+      <label for="humidity_day">
+        Umiditate zi:
+        <span class="info-icon" title="Nivelul optim de umiditate în timpul zilei. Folosiți un interval recomandat (%).">ℹ️</span>
+      </label>
+      <input type="text" id="humidity_day" required>
+    </div>
+
+    <div class="form-row">
+      <label for="temp_night">
+        Temp noapte:
+        <span class="info-icon" title="Temperatura recomandată pe timpul nopții. Folosiți un interval recomandat (°C).">ℹ️</span>
+      </label>
+      <input type="text" id="temp_night" required>
+
+      <label for="humidity_night">
+        Umiditate noapte:
+        <span class="info-icon" title="Umiditatea dorită în timpul nopții. Folosiți un interval recomandat(%).">ℹ️</span>
+      </label>
+      <input type="text" id="humidity_night" required>
+    </div>
+
+    <div class="form-buttons"> 
+      <button type="submit" class="btn-popup">Trimite</button>
+      <button type="button" class="btn-popup cancel" onclick="closeCommandPopup()">Închide</button>
+    </div>
+  </form>
+</div>

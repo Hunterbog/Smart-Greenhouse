@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <title>Planificare Recoltă</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+   
+</head>
+<body>
+  {% include 'navbar.html' %}
+
+  <div class="form-wrapper">
+    <form id="startForm" class="form-box">
+      <label>Temperatură optimă zi:</label>
+      <input type="text" step="0.1" name="optimal_temp_day">
+
+      <label>Umiditate optimă zi:</label>
+      <input type="text" step="0.1" name="optimal_humidity_day">
+
+      <label>Temperatură optimă noapte:</label>
+      <input type="text" step="0.1" name="optimal_temp_night">
+
+      <label>Umiditate optimă noapte:</label>
+      <input type="text" step="0.1" name="optimal_humidity_night">
+
+      <button type="submit">Start recoltă</button>
+
+<p style="margin-top: 10px; font-size: 0.9em; color: #555;">
+  Folosiți valori întregi!<br>
+  Dacă nu completați câmpurile, vor fi folosite valorile implicite:
+  <br><strong>24°C / 65% zi</strong>, <strong>18°C / 75% noapte</strong>.
+</p>
+    </form>
+  </div>
+ <script src="{{ url_for('static', filename='js/plants.js') }}"></script>
+
+</body>
+</html>
