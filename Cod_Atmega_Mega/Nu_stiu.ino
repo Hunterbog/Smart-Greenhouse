@@ -2,6 +2,8 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <Servo.h>
+#include <Wire.h>
+#include <BH1750.h>
 /*************VARIABILE PT TIMP START**************/
 uint16_t year = 2000;
 uint8_t month = 0, day = 0, hour = 0, minute = 0, second = 0;
@@ -42,15 +44,15 @@ unsigned long windowIsOpenedTime = 0;
 #define TIMEOUT_MS 10
 #define ACK 0x06
 #define NAK 0x15
-#define LATURA 15
-#define LUNGIME 15
-#define INALTIME 12.5
+#define LATURA 15.5
+#define LUNGIME 15.5
+#define INALTIME 11
 
 #define ACT_BUFF_ID 'A'
 #define ACT_BUFF_SIZE 12
 
 #define SENS_BUFF_SIZE 20
-#define SENS_BUFF_ID  'S'
+#define SENS_BUFF_ID 'S'
 
 #define VOLUM_SUFICIENT_APA 1.0
 #define CONTROL_SERA 1
@@ -114,7 +116,7 @@ static uint8_t index = 0;
 // Definire pinii pentru senzori și actuatori
 
 /*========================Resurse Haardware=======================*/
-#define DHTPIN 3
+#define DHTPIN A7
 #define DHTTYPE DHT22
 #define moisturePin A0
 const int pinHigrometru1 = A6;  // intrare analogica senzor umiditate parcela 1
@@ -122,8 +124,8 @@ const int pinHigrometru2 = A7;  // intrare analogica senzor umiditate parcela 2
 const int pinHigrometru3 = A8;  // intrare analogica senzor umiditate parcela 3
 const int pinUmiLvl = A9;       // intrare analogica senzor umiditate parcela 4
 #define lightSensorPin A5
-#define trigPin 8
-#define echoPin 7
+#define trigPin 52
+#define echoPin 50
 const int pumpPin1 = 47;
 const int pumpPin2 = 49;
 const int pumpPin3 = 51;
@@ -190,7 +192,7 @@ bool FansState = false;
 Temperature temperature = NORMAL_TEMP;
 // Prag și timp pentru lumina naturală
 #define LIGHT_THRESHOLD 500                       // Valoarea minimă considerată "lumina suficientă"
-#define LOW_LIGHT_THRESHOLD 300                   // Prag pentru lumină scăzută (innorat)
+#define LOW_LIGHT_THRESHOLD 100                   // Prag pentru lumină scăzută (innorat)
 #define LIGHT_REQUIRED_HOURS 8                    // Orele necesare de lumină naturală
 #define MAX_ARTIFICIAL_LIGHT_DURATION 36000000UL  // 10 ore în ms
 // Definire DHT
@@ -204,6 +206,7 @@ int lightLevel = 0;
 uint16_t waterLvlHum = 800;
 bool allowHumToWork = true;
 float waterVolume = 0.0;
+BH1750 lightMeter;
 /*===========================SENZORI-SFARSIT===========================*/
 
 unsigned long pompaTime1 = 0;
@@ -275,7 +278,8 @@ void setup() {
   pinMode(pinHigrometru2, INPUT);
   pinMode(pinHigrometru3, INPUT);
   pinMode(pinUmiLvl, INPUT);
-  pinMode(lightSensorPin, INPUT);
+  Wire.begin();
+  lightMeter.begin();
   pinMode(pumpPin1, OUTPUT);  // Set mode for pump 1
   pinMode(pumpPin2, OUTPUT);  // Set mode for pump 2
   pinMode(pumpPin3, OUTPUT);  // Set mode for pump 3
@@ -305,6 +309,7 @@ void setup() {
   servoPos = SERVO_CLOSED;
   windowServo.write(servoPos);
   prevServoTime = millis();
+  command = START;
 }
 
 void allowWindowToWork() {
@@ -364,7 +369,7 @@ void loop() {
         readLightSensor();
       }
 
-      if (millis() - previousWaterLvlHumMillis >= WaterLvlHumUpdate) {
+      if (millis() - previousWaterLvlHumMillis >= WaterLvlHumUpdate && digitalRead(pumpPin4== 0)) {
         previousWaterLvlHumMillis = millis();
         readWaterLvlHum();
       }
@@ -374,18 +379,18 @@ void loop() {
         allowWindowToWork();
       }
 
-      if (millis() - prevWaterLevel >= WaterLevelRead) {
+      if ((millis() - prevWaterLevel >= WaterLevelRead)&&(digitalRead(pumpPin1== 0)&& digitalRead(pumpPin2== 0) && digitalRead(pumpPin3== 0))) {
         prevWaterLevel = millis();
-        calculeazaVolumApaInLitri();
+        readWaterLevel();
       }
 
       if (millis() - prevUpdateTxBufferActuators >= UpdateTxBuffer) {
         prevUpdateTxBufferActuators = millis();
-        updateSerialBufferActuators();
+        // updateSerialBufferActuators();
       }
-      if (millis() - prevUpdateTxBufferActuators >= 5 * UpdateTxBuffer) {
+      if (millis() - prevUpdateTxBufferActuators >= 50 * UpdateTxBuffer) {
         prevUpdateTxBufferSensors = millis();
-        updateSerialBufferSensors();
+        // updateSerialBufferSensors();
       }
       applicationLogic(mode);
       break;
@@ -401,13 +406,14 @@ void readLightSensor() {
   static int index = 0;
 
   // Take a new reading
-  samples[index++] = analogRead(lightSensorPin);
+  samples[index++] = lightMeter.readLightLevel();
   if (index == numSamples) {
+    index = 0;
     setbit(FirstReadSensors, 0);
     lightLevel = getMedian(samples, numSamples);
 
-    //Serial.print("Light: ");
-    //Serial.println(lightLevel);
+    Serial.print("Light: ");
+    Serial.println(lightLevel);
   }
 }
 
@@ -419,6 +425,7 @@ void readWaterLvlHum() {
   // Take a new reading
   samples[index++] = analogRead(pinUmiLvl);
   if (index == numSamples) {
+    index = 0;
     waterLvlHum = getMedian(samples, numSamples);
 
     //Serial.print("Light: ");
@@ -494,30 +501,35 @@ void readTemperatureHumiditySensor() {
     // Serial.print(dhtTemp);
     // Serial.print("C, Humidity: ");
     // Serial.print(dhtHumidity);
-    //Serial.println("%");
+    // Serial.println("%");
   }
 }
 
 void readWaterLevel() {
-  const int numSamples = 4;
-  static int samples[numSamples] = { 0 };
+  const int numSamples = 10;
+  static float samples[numSamples] = { 0 };
   static int index = 0;
 
   // Take a new reading
   samples[index++] = calculeazaVolumApaInLitri();
   if (index == numSamples) {
+    index = 0;
     setbit(FirstReadSensors, 3);
-    waterVolume = getMedian(samples, numSamples);
-
-    //Serial.print("Light: ");
-    //Serial.println(lightLevel);
+    waterVolume = getMedianFloat(samples, numSamples);
+    Serial.println("Volum:");
+    Serial.println(waterVolume);
   }
 }
 
 float calculeazaVolumApaInLitri() {
-  float distanta = Distance();
-  distanta = INALTIME - distanta;
+  float t=Distance();
+  float distanta = (INALTIME - t);
+  //Serial.println(t);
+  if (distanta <= 0.5) {
+    distanta = 0;
+  }
   float volumCm3 = LATURA * LUNGIME * distanta;
+  //Serial.println(volumCm3);
   return volumCm3 / 1000.0;
 }
 
@@ -527,8 +539,8 @@ float Distance() {
   digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
-  float duration = 1; /*pulseIn(echoPin, HIGH);*/
-  return duration * 0.034 / 2;
+  float duration = pulseIn(echoPin, HIGH);
+  return duration * 0.034 / 2.0;
 }
 
 // Logica pentru lumina artificială
@@ -1023,14 +1035,12 @@ void handleActuatorFrame(const uint8_t *data) {
 
 void handleHarvestFrame(const uint8_t *data) {
 
-  if(data[0] == 'P'){
+  if (data[0] == 'P') {
     command = START;
-  }
-  else if(data[0] == 'O')
-  {
+  } else if (data[0] == 'O') {
     command = STOP;
-  } else if(data[0] == 'R'){
-     command = RUNNING; // teoretic nu fac nimic;
+  } else if (data[0] == 'R') {
+    command = RUNNING;  // teoretic nu fac nimic;
   }
 
 
