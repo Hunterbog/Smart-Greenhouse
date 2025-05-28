@@ -6,7 +6,7 @@
 
 /******************CONSTANTS START***************************/
 #define SEND_FRAME(pkt) writeFrameWithRetry((uint8_t*)&(pkt), sizeof(pkt))
-#define DEBUG STD_ON
+#define DEBUG STD_OFF
 #define STD_ON HIGH
 #define STD_OFF LOW
 #define MAX_RETRY 3
@@ -136,10 +136,9 @@ bool sendToServer = false;
 // === Setup WiFi ===
 void connectWiFi() {
   WiFi.begin(ssid, password);
-  Serial.print("Connecting to WiFi...");
+  //Serial.print("Connecting to WiFi...");
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.print(".");
   }
   Serial.println("\nConnected to WiFi!");
 }
@@ -147,7 +146,7 @@ void connectWiFi() {
 // === Setup MQTT ===
 void connectMQTT() {
   while (!mqttClient.connected()) {
-    Serial.print("Connecting to MQTT...");
+    //Serial.print("Connecting to MQTT...");
     if (mqttClient.connect("esp8266_client_001", mqttUser, mqttPassword)) {
       Serial.println("Conectat la Mqtt!");
       mqttClient.subscribe(mqttTopicSubscribe);
@@ -214,7 +213,7 @@ void handleGreenhouseStatus(const String& message) {
   }
 
   // Calcul CRC
-  uint16_t crc = computeCRC((uint8_t*)&harvestPacket, HARVEST_FRAME_LEN);
+  uint16_t crc = computeCRC((uint8_t*)&harvestPacket, HARVEST_FRAME_LEN - 2);
   harvestPacket.crc = (crc >> 8) | (crc << 8);
   SEND_FRAME(harvestPacket);
 
@@ -228,7 +227,7 @@ void handleGreenhouseStatus(const String& message) {
   Serial.println();
   Serial.println(sizeof(harvestPacket));
   Serial.println();
-  Serial.println(computeCRC((uint8_t*)&harvestPacket, HARVEST_FRAME_LEN + 2));
+  Serial.println(computeCRC((uint8_t*)&harvestPacket, HARVEST_FRAME_LEN));
 #endif
 }
 /*****************************METODA TRIMITERE INFORMATII DESPRE RECOLTA SFARSIT********************************************/
@@ -278,7 +277,7 @@ void handleActuatorCommand(const String& actuator, const String& message) {
     actuatorPacket.state = (message == "ON") ? STD_ON : STD_OFF;
   }
 
-  crc = computeCRC((uint8_t*)&actuatorPacket, ACTUATOR_FRAME_LEN);
+  crc = computeCRC((uint8_t*)&actuatorPacket, ACTUATOR_FRAME_LEN - 2);
   actuatorPacket.crc = (crc >> 8) | (crc << 8);
   SEND_FRAME(actuatorPacket);
   //Cod de debug
@@ -292,7 +291,7 @@ void handleActuatorCommand(const String& actuator, const String& message) {
   }
   Serial.println(sizeof(actuatorPacket));
   Serial.println();
-  Serial.println(computeCRC((uint8_t*)&actuatorPacket, ACTUATOR_FRAME_LEN + 2));
+  Serial.println(computeCRC((uint8_t*)&actuatorPacket, ACTUATOR_FRAME_LEN));
 #endif
 }
 /********************************METODA TRIMITERE DATE CONTROL CATRE ATMEGA SFARSIT******************************************/
