@@ -53,7 +53,7 @@ unsigned long windowIsOpenedTime = 0;
 #define ACT_BUFF_SIZE 12
 
 #define SENS_BUFF_SIZE 20
-#define SENS_BUFF_ID 'S'
+#define SENS_BUFF_ID  'S'
 
 #define VOLUM_SUFICIENT_APA 1.0
 #define CONTROL_SERA 1
@@ -158,7 +158,6 @@ int SOIL_MOISTURE_DRY_THRESHOLD = 800;  // Solul e considerat uscat peste acest 
 int SOIL_MOISTURE_OPTIMAL_MIN = 301;    // Începutul zonei de umiditate optimă
 int SOIL_MOISTURE_OPTIMAL_MAX = 799;    // Sfârșitul zonei de umiditate optimă
 int SOIL_MOISTURE_WET_THRESHOLD = 300;  // Sub acest prag, solul e considerat prea ud
-
 
 /*========================Sfarsit Resurse Haardware=======================*/
 
@@ -310,7 +309,6 @@ void setup() {
   servoPos = SERVO_CLOSED;
   windowServo.write(servoPos);
   prevServoTime = millis();
-  command = START;
 }
 
 void allowWindowToWork() {
@@ -322,7 +320,6 @@ void allowWindowToWork() {
 }
 
 void loop() {
-
   updateTime();
   while (Serial.available() > 0) {
     uint8_t octet = Serial.read();
@@ -392,11 +389,11 @@ void loop() {
 
       if (millis() - prevUpdateTxBufferActuators >= UpdateTxBuffer) {
         prevUpdateTxBufferActuators = millis();
-        //updateSerialBufferActuators();
+        updateSerialBufferActuators();
       }
       if (millis() - prevUpdateTxBufferSensors >= 50 * UpdateTxBuffer) {
         prevUpdateTxBufferSensors = millis();
-        //updateSerialBufferSensors();
+        updateSerialBufferSensors();
       }
       applicationLogic(mode);
       break;
@@ -527,9 +524,8 @@ void readWaterLevel() {
 }
 
 float calculeazaVolumApaInLitri() {
-  float t = Distance();
-  float distanta = (INALTIME - t);
-  //Serial.println(t);
+  float distanta = Distance();
+  distanta = INALTIME - distanta;
   if (distanta <= 0.5) {
     distanta = 0;
   }
@@ -585,8 +581,6 @@ void controlGrowLight() {
 //
 // - Se pornește pompa doar dacă senzorii indică condiții potrivite și există suficientă apă în rezervor
 void controlWaterSystem() {
-  HumidityUpperLimit = 70;
-
   // Pornirea pompelor dacă sunt îndeplinite toate condițiile + idle time
   if (dhtHumidity <= HumidityUpperLimit && lightLevel < OPTIMAL_LIGHT_LEVEL && waterVolume >= VOLUM_SUFICIENT_APA) {
 
@@ -649,6 +643,7 @@ void controlWaterSystem() {
     }
   }
 }
+
 
 // Funcția applicationLogic() gestionează logica principală:
 // - Udarea plantelor (inclusiv controlul apei)
@@ -808,7 +803,6 @@ void controlWeatherSystem() {
     temperature = HIGH_TEMP;
   else if (dhtTemp <= TemperatureLowerLimit - hysteresisBuffer)
     temperature = LOW_TEMP;
-
   switch (temperature) {
     case HIGH_TEMP:
       if (dhtHumidity < (float)HumidityLowerLimit - hysteresisBuffer) {  //Nivelul de umidate este MIC
@@ -1070,9 +1064,11 @@ void handleActuatorFrame(const uint8_t *data) {
 
 void handleHarvestFrame(const uint8_t *data) {
 
-  if (data[0] == 'P') {
+  if(data[0] == 'P'){
     command = START;
-  } else if (data[0] == 'O') {
+  }
+  else if(data[0] == 'O')
+  {
     command = STOP;
   } else if (data[0] == 'R') {
     command = RUNNING;  // teoretic nu fac nimic;
