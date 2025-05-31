@@ -102,7 +102,13 @@ function openCommandPopup() {
   document.getElementById("commandForm").style.display = "block";
   document.getElementById("overlay").style.display = "block";
   document.body.style.overflow = "hidden";
+  fetch('/plants_update')
+    .then(res => res.json())
+    .catch(err => {
+      console.error('Eroare la preluare:', err);
+    });
 }
+
 
 function closeCommandPopup() {
   document.getElementById("commandForm").style.display = "none";
@@ -135,7 +141,7 @@ function submitForm(event) {
         document.getElementById("humidity_day").value = "";
         document.getElementById("temp_night").value = "";
         document.getElementById("humidity_night").value = "";
-    //   alert("Trimis cu Succes!");
+      //  alert("Trimis cu Succes!");
 
       } else {
         alert("Eroare: " + (response.message || "necunoscută"));

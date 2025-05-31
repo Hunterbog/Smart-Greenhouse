@@ -42,6 +42,12 @@ async function initActuatorPage() {
       updateActuatorVisibility(newState);
       btnManual.classList.toggle('active', newState === 'ON');
       btnAuto.classList.toggle('active', newState !== 'ON');
+      const comenziBox = document.getElementById('box-trimite-comenzi');
+      if (comenziBox) {
+        comenziBox.style.display = (newState === 'ON') ? 'none' : 'flex';
+      }
+
+
     } catch (err) {
       console.error('Failed to set mod state:', err);
     }
@@ -94,23 +100,19 @@ async function initActuatorPage() {
     }).catch(err => console.error(err));
   }
 
-analogActuators.forEach(id => {
-  const slider = document.getElementById(id);
-  const output = document.getElementById(id + '-value');
+  analogActuators.forEach(id => {
+    const slider = document.getElementById(id);
+    const output = document.getElementById(id + '-value');
 
-  if (slider && output) {
-    slider.addEventListener('input', () => {
-      output.textContent = slider.value;
-    });
-    slider.addEventListener('change', () => {
-      publishAnalog(id);
-    });
-  }
-});
-
-
-
-
+    if (slider && output) {
+      slider.addEventListener('input', () => {
+        output.textContent = slider.value;
+      });
+      slider.addEventListener('change', () => {
+        publishAnalog(id);
+      });
+    }
+  });
 
   const mqttOptions = {
     username: 'hunterbog',

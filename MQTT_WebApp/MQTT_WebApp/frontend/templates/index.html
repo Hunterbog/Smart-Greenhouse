@@ -12,25 +12,26 @@
 </head>
 <style>
   body {
-  background-image: url("{{ url_for('static', filename='img/sera.jpg') }}");
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-attachment: fixed;
-}
+    background-image: url("{{ url_for('static', filename='img/sera.jpg') }}");
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-attachment: fixed;
+  }
 </style>
+
 <body class="index-page">
   {% include 'navbar.html' %}
   {% include 'popup_form.html' %}
 
   <div class="content">
     <div class="container-row">
-      <div class="box">
+      <div class="box" id="box-trimite-comenzi" {% if statuses.get('mod') !='OFF' %}style="display: none;" {% endif %}>
         <div class="control-buttons">
-          <button onclick="openCommandPopup()" class="btn">Trimite comenzi noi</button>
+          <button onclick="openCommandPopup()" class="btn" id="btn-trimite-comenzi">Trimite comenzi noi</button>
         </div>
       </div>
-      <div class="box">
+      <div class="box" id="box-mod">
         <div class="mod-toggle">
           <button id="btn-automat"
             class="mod-btn {% if statuses.get('mod') != 'ON' %}active{% endif %}">AUTOMAT</button>
@@ -43,99 +44,100 @@
           </span>
         </p>
       </div>
-      <div class="box">
+
+      <div class="box" id="box-opreste">
         <div class="control-buttons">
           <button onclick="markAsHarvested()" class="btn">Oprește Sera</button>
         </div>
       </div>
     </div>
+  </div>
+  
+  <div class="actuator-controls {% if statuses.get('mod') != 'ON' %}opacity{% endif %}" id="actuator-controls">
+    <div class="actuator-box">
+      <label>💧 Pompă Parcelă 1</label>
+      <label class="switch">
+        <input type="checkbox" id="pompa1" {% if statuses.get('pompa1')=='ON' %}checked{% endif %}>
+        <span class="slider round"></span>
+      </label>
+    </div>
 
+    <div class="actuator-box">
+      <label>💧 Pompă Parcelă 2</label>
+      <label class="switch">
+        <input type="checkbox" id="pompa2" {% if statuses.get('pompa2')=='ON' %}checked{% endif %}>
+        <span class="slider round"></span>
+      </label>
+    </div>
 
-    <div class="actuator-controls {% if statuses.get('mod') != 'ON' %}opacity{% endif %}" id="actuator-controls">
-      <div class="actuator-box">
-        <label>💧 Pompă Parcelă 1</label>
-        <label class="switch">
-          <input type="checkbox" id="pompa1" {% if statuses.get('pompa1')=='ON' %}checked{% endif %}>
-          <span class="slider round"></span>
-        </label>
+    <div class="actuator-box">
+      <label>💧 Pompă Parcelă 3</label>
+      <label class="switch">
+        <input type="checkbox" id="pompa3" {% if statuses.get('pompa3')=='ON' %}checked{% endif %}>
+        <span class="slider round"></span>
+      </label>
+    </div>
+
+    <div class="actuator-box">
+      <label>💦 Umidificator</label>
+      <label class="switch">
+        <input type="checkbox" id="umidificator" {% if statuses.get('umidificator')=='ON' %}checked{% endif %}>
+        <span class="slider round"></span>
+      </label>
+    </div>
+
+    <div class="actuator-box">
+      <label>💡 Lumina Creștere</label>
+      <label class="switch">
+        <input type="checkbox" id="lumina" {% if statuses.get('lumina')=='ON' %}checked{% endif %}>
+        <span class="slider round"></span>
+      </label>
+    </div>
+
+    <div class="actuator-box">
+      <label>🪟 Deschidere Geam</label>
+      <label class="switch">
+        <input type="checkbox" id="geam" {% if statuses.get('geam')=='ON' %}checked{% endif %}>
+        <span class="slider round"></span>
+      </label>
+    </div>
+
+    <div class="actuator-box">
+      <label for="ventilator1">🌀 Ventilator Răcire 1</label>
+      <div>
+        <input type="range" id="ventilator1" min="0" max="100" value="{{ statuses.get('ventilator1', 0) }}">
+        <span id="ventilator1-value">{{ statuses.get('ventilator1', 0) }}</span>
       </div>
+    </div>
 
-      <div class="actuator-box">
-        <label>💧 Pompă Parcelă 2</label>
-        <label class="switch">
-          <input type="checkbox" id="pompa2" {% if statuses.get('pompa2')=='ON' %}checked{% endif %}>
-          <span class="slider round"></span>
-        </label>
+    <div class="actuator-box">
+      <label for="ventilator2">🌀 Ventilator Răcire 2</label>
+      <div>
+        <input type="range" id="ventilator2" min="0" max="100" value="{{ statuses.get('ventilator2', 0) }}">
+        <span id="ventilator2-value">{{ statuses.get('ventilator2', 0) }}</span>
       </div>
+    </div>
 
-      <div class="actuator-box">
-        <label>💧 Pompă Parcelă 3</label>
-        <label class="switch">
-          <input type="checkbox" id="pompa3" {% if statuses.get('pompa3')=='ON' %}checked{% endif %}>
-          <span class="slider round"></span>
-        </label>
+    <div class="actuator-box">
+      <label for="incalzire1">🔥 Încălzire 1</label>
+      <div>
+        <input type="range" id="incalzire1" min="0" max="100" value="{{ statuses.get('incalzire1', 0) }}">
+        <span id="incalzire1-value">{{ statuses.get('incalzire1', 0) }}</span>
+
       </div>
+    </div>
 
-      <div class="actuator-box">
-        <label>💦 Umidificator</label>
-        <label class="switch">
-          <input type="checkbox" id="umidificator" {% if statuses.get('umidificator')=='ON' %}checked{% endif %}>
-          <span class="slider round"></span>
-        </label>
+    <div class="actuator-box">
+      <label for="incalzire2">🔥 Încălzire 2</label>
+      <div>
+        <input type="range" id="incalzire2" min="0" max="100" value="{{ statuses.get('incalzire2', 0) }}">
+        <span id="incalzire2-value">{{ statuses.get('incalzire2', 0) }}</span>
       </div>
-
-      <div class="actuator-box">
-        <label>💡 Lumina Creștere</label>
-        <label class="switch">
-          <input type="checkbox" id="lumina" {% if statuses.get('lumina')=='ON' %}checked{% endif %}>
-          <span class="slider round"></span>
-        </label>
-      </div>
-
-      <div class="actuator-box">
-        <label>🪟 Deschidere Geam</label>
-        <label class="switch">
-          <input type="checkbox" id="geam" {% if statuses.get('geam')=='ON' %}checked{% endif %}>
-          <span class="slider round"></span>
-        </label>
-      </div>
-
-      <div class="actuator-box">
-        <label for="ventilator1">🌀 Ventilator Răcire 1</label>
-        <div>
-          <input type="range" id="ventilator1" min="0" max="100" value="{{ statuses.get('ventilator1', 0) }}">
-          <span id="ventilator1-value">{{ statuses.get('ventilator1', 0) }}</span>
-        </div>
-      </div>
-
-      <div class="actuator-box">
-        <label for="ventilator2">🌀 Ventilator Răcire 2</label>
-        <div>
-          <input type="range" id="ventilator2" min="0" max="100" value="{{ statuses.get('ventilator2', 0) }}">
-          <span id="ventilator2-value">{{ statuses.get('ventilator2', 0) }}</span>
-        </div>
-      </div>
-
-      <div class="actuator-box">
-        <label for="incalzire1">🔥 Încălzire 1</label>
-        <div>
-          <input type="range" id="incalzire1" min="0" max="100" value="{{ statuses.get('incalzire1', 0) }}">
-          <span id="incalzire1-value">{{ statuses.get('incalzire1', 0) }}</span>
-
-        </div>
-      </div>
-
-      <div class="actuator-box">
-        <label for="incalzire2">🔥 Încălzire 2</label>
-        <div>
-          <input type="range" id="incalzire2" min="0" max="100" value="{{ statuses.get('incalzire2', 0) }}">
-          <span id="incalzire2-value">{{ statuses.get('incalzire2', 0) }}</span>
-        </div>
-      </div>
+    </div>
 
 
-      <script src="{{ url_for('static', filename='js/app.js') }}?v={{ random() }}"></script>
-      <script src="{{ url_for('static', filename='js/plants.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ random() }}"></script>
+    <script src="{{ url_for('static', filename='js/plants.js') }}"></script>
 </body>
 
 </html>

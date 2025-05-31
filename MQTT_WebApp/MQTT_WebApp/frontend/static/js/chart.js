@@ -2,6 +2,7 @@ const ctx = document.getElementById(chartConfig.canvasId).getContext('2d');
 let chart;
 let currentPeriod = '1zi';
 let currentOffset = 0;
+let lastTimestamp = null;
 
 function setPeriod(period) {
   currentPeriod = period;
@@ -21,7 +22,7 @@ function setPeriod(period) {
 function goBack() {
   if (currentOffset < 24) {
     currentOffset++;
-    loadData();
+    loadData(true);
     updateNavButtons();
   }
 }
@@ -34,14 +35,24 @@ function goForward() {
   }
 }
 
-async function loadData() {
+async function loadData(force = false) {
   const url = `/sensor-data?sensor=${chartConfig.sensor}&period=${currentPeriod}&page=${currentOffset}`;
   try {
     const response = await fetch(url);
     const json = await response.json();
+
+    const newTimestamp = json.last_timestamp;
+
+    const tsDate = new Date(newTimestamp);
+    const minute = tsDate.getMinutes();
+
+    if (currentPeriod !== 'maxim' && !force && minute % 5 !== 0) return;
+
     renderChart(json.labels, json.data);
+    lastTimestamp = newTimestamp;
+
   } catch (err) {
-    console.error('Eroare la fetch');
+    console.error('Eroare la fetch:', err);
   }
 }
 
@@ -127,14 +138,10 @@ function updateNavButtons() {
   backBtn.disabled = currentOffset >= 24;
 }
 
-
 setInterval(() => {
-  const now = new Date();
-  if (now.getMinutes() % 5 === 0) {
-    if (currentOffset === 0) {
-      loadData();
-    }
+  if (currentOffset === 0) {
+    loadData();
   }
-}, 1000);
+}, 10000);
 
 setPeriod('1zi');

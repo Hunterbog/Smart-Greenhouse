@@ -66,21 +66,23 @@ def sensor_data():
                         slot_buckets[slot_time][field].append(doc[field])
             except Exception:
                 continue
-
         sorted_slots = sorted(slot_buckets.keys())
+        last_timestamp = sorted_slots[-1].strftime('%Y-%m-%d %H:%M:%S') if sorted_slots else None
+
         results = {f: [] for f in selected_fields}
-        labels = [ts.strftime(label_format) for ts in sorted_slots]
+        labels = []
 
         for slot in sorted_slots:
+            labels.append(slot.strftime(label_format))
             for field in selected_fields:
-                values = slot_buckets[slot][field]
+                values = slot_buckets.get(slot, {}).get(field, [])
                 avg = round(sum(values) / len(values), 2) if values else None
                 results[field].append(avg)
 
         if len(selected_fields) == 1:
             results = results[selected_fields[0]]
 
-        return jsonify({'labels': labels, 'data': results})
+        return jsonify({'labels': labels, 'data': results, 'last_timestamp': last_timestamp})
 
     elif period == 'maxim':
         query_filter = {"timestamp": {"$exists": True}, **crop_filter}

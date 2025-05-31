@@ -50,7 +50,7 @@ def handle_plants():
             logging.exception(e)
             return jsonify({"error": str(e)}), 400
 
-    else:
+    elif request.method == 'GET':
         try:
             active_crop = plants_history.find_one({"active": True})
             return render_template("plants.html", active_crop=active_crop)
@@ -64,7 +64,6 @@ def send_commands():
         data = request.get_json()
 
         try:
-
             temp_day = normalize_interval(data.get("optimal_temp_day"))
             humidity_day = normalize_interval(data.get("optimal_humidity_day"))
             temp_night = normalize_interval(data.get("optimal_temp_night"))
@@ -78,7 +77,7 @@ def send_commands():
                 "optimal_humidity_night": humidity_night,
             }
 
-            plants_history.update_one({'active' : True}, {'$set': plant_doc})
+            plants_history.update_one({'active': True}, {'$set': plant_doc})
 
             timestamp = command_date.strftime("%Y-%m-%d %H:%M:%S")
             mqtt_payload = f"Running,{temp_day},{humidity_day},{temp_night},{humidity_night},{timestamp}"
@@ -89,6 +88,24 @@ def send_commands():
         except Exception as e:
             logging.exception(e)
             return jsonify({"error": str(e)}), 400
+
+    elif request.method == 'GET':
+        try:
+            active_crop = plants_history.find_one({"active": True})
+            if not active_crop:
+                return jsonify({"error": "Nicio cultură activă"}), 404
+
+            return jsonify({
+                "optimal_temp_day": active_crop.get("optimal_temp_day", ""),
+                "optimal_humidity_day": active_crop.get("optimal_humidity_day", ""),
+                "optimal_temp_night": active_crop.get("optimal_temp_night", ""),
+                "optimal_humidity_night": active_crop.get("optimal_humidity_night", "")
+            })
+
+        except Exception as e:
+            logging.exception(e)
+            return jsonify({"error": str(e)}), 500
+
     
 
 

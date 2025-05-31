@@ -9,12 +9,14 @@
         Temp zi:
         <span class="info-icon" title="Temperatura ideală ziua. Folosiți un interval recomandat (°C).">ℹ️</span>
       </label>
+      <small><i>Valoare actuală: {{ active_crop.optimal_temp_day }}°C</i></small>
       <input type="text" id="temp_day" required>
 
       <label for="humidity_day">
         Umiditate zi:
         <span class="info-icon" title="Nivelul optim de umiditate în timpul zilei. Folosiți un interval recomandat (%).">ℹ️</span>
       </label>
+      <small><i>Valoare actuală: {{ active_crop.optimal_humidity_day }}%</i></small>
       <input type="text" id="humidity_day" required>
     </div>
 
@@ -23,12 +25,14 @@
         Temp noapte:
         <span class="info-icon" title="Temperatura recomandată pe timpul nopții. Folosiți un interval recomandat (°C).">ℹ️</span>
       </label>
+      <small><i>Valoare actuală: {{ active_crop.optimal_temp_night }}°C</i></small>
       <input type="text" id="temp_night" required>
 
       <label for="humidity_night">
         Umiditate noapte:
         <span class="info-icon" title="Umiditatea dorită în timpul nopții. Folosiți un interval recomandat(%).">ℹ️</span>
       </label>
+      <small><i>Valoare actuală: {{ active_crop.optimal_humidity_night }}%</i></small>
       <input type="text" id="humidity_night" required>
     </div>
 

@@ -104,11 +104,6 @@ input:checked+.slider:before {
 
 /* NAVBAR */
 
-#actuator-controls.opacity {
-  opacity: 0.80;
-  pointer-events: none;
-}
-
 input[type="range"] {
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -492,36 +487,37 @@ canvas {
   text-align: center;
 }
 
-.actuator-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  margin-top: 30px;
-}
+
 
 /* Index HTML */
 .container-row {
   display: flex;
-  justify-content: center;
+  justify-content: center;       
+  align-items: stretch;          
   gap: 20px;
-  margin: 30px auto;
+  margin: 20px auto;
   max-width: 1000px;
-  flex-wrap: nowrap;
-
-  .box {
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-
-  }
+  width: 100%;
+  flex-wrap: nowrap;             
 }
 
+.container-row .box {
+  flex: 1 1 0;                    
+  min-width: 250px;              
+  max-width: 300px;               
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+
 .content {
-  width: fit-content;
-  margin-left: 10px;
-  padding: 1rem;
+  padding: 0;
+  margin: 0 auto;
 }
 
 /* Index HTML  sfarsit*/
@@ -536,6 +532,19 @@ canvas {
   background-color: #f9f9f9;
   display: flex;
   justify-content: space-between;
+}
+
+.actuator-controls {
+  padding: 20px 40px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  /* margin-top: 8px; */
+}
+
+#actuator-controls.opacity {
+  opacity: 0.80;
+  pointer-events: none;
 }
 
 /* Index HTML actuatori sfarsit*/
@@ -627,3 +636,6 @@ canvas {
 .btn.cancel:hover {
   background-color: #c82333;
 }
+
+
+
