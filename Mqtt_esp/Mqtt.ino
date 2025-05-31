@@ -13,8 +13,8 @@
 #define TIMEOUT_MS 10
 #define ACK 0x06
 #define NAK 0x15
-#define SENS_BUFF_ID 'S'
-#define ACT_BUFF_ID 'A'
+#define SENS_BUFF_ID 's'
+#define ACT_BUFF_ID 'a'
 #define VALID 0
 #define FRAME_START 0xAA
 #define ACTUATOR_FRAME_LEN 8
@@ -131,7 +131,8 @@ unsigned long lastSensorSendTime = 0;
 const unsigned long SEND_INTERVAL = 5000;
 
 bool sendToServer = false;
-
+unsigned char cnt_WiFiUnconnected;
+unsigned char cnt_MqttUnconnected;
 
 // === Setup WiFi ===
 void connectWiFi() {
@@ -139,22 +140,34 @@ void connectWiFi() {
   //Serial.print("Connecting to WiFi...");
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
+    cnt_WiFiUnconnected++;
+    if (cnt_WiFiUnconnected == 20) {
+      handleActuatorCommand("mod", "OFF");  // trimite comanda la ATmega pt a functiona automat
+      cnt_WiFiUnconnected = 0;
+    }
   }
-  Serial.println("\nConnected to WiFi!");
 }
 
 // === Setup MQTT ===
 void connectMQTT() {
   while (!mqttClient.connected()) {
-    //Serial.print("Connecting to MQTT...");
     if (mqttClient.connect("esp8266_client_001", mqttUser, mqttPassword)) {
+#if (DEBUG == STD_ON)    
       Serial.println("Conectat la Mqtt!");
+#endif
       mqttClient.subscribe(mqttTopicSubscribe);
       mqttClient.subscribe(mqttTopicGreenhouseStatus);
     } else {
+#if (DEBUG == STD_ON)
       Serial.print(mqttClient.state());
       Serial.println("Incerc din nou");
       delay(1000);
+#endif
+      cnt_MqttUnconnected++;
+      if (cnt_MqttUnconnected == 10) {
+        handleActuatorCommand("mod", "OFF");  // trimite comanda la ATmega pt a functiona automat
+        cnt_MqttUnconnected = 0;
+      }
     }
   }
 }
@@ -244,7 +257,7 @@ void handleActuatorCommand(const String& actuator, const String& message) {
   actuatorPacket.id = ACTUATOR_PKT_ID;
   if (actuator == "mod") {
     actuatorPacket.actuator = CONTROL_SERA;
-    actuatorPacket.state = (message == "ON") ? STD_ON : STD_OFF;
+    actuatorPacket.state = (message == "ON") ? STD_ON : STD_OFF;  // STD_OFF sera lucreaza in mod automat, STD_ON sera lucreaza in mod manual - cum doreste utilizatorul
   } else if (actuator == "pompa1") {
     actuatorPacket.actuator = POMPA1;
     actuatorPacket.state = (message == "ON") ? STD_ON : STD_OFF;
@@ -333,9 +346,9 @@ void setup() {
   Serial.begin(115200);
   connectWiFi();
 
-  // static X509List cert(mqttServerCert);         
-  // espClient.setTrustAnchors(&cert);           
-  // espClient.setBufferSizes(2048, 2048);           
+  // static X509List cert(mqttServerCert);
+  // espClient.setTrustAnchors(&cert);
+  // espClient.setBufferSizes(2048, 2048);
   espClient.setInsecure();
   mqttClient.setServer(mqttServer, mqttPort);
   mqttClient.setCallback(callback);
@@ -430,7 +443,7 @@ void handleSensorFrame(const uint8_t* data) {
 
 void handleActuatorFrame(const uint8_t* data) {
 
-  uint8_t pwmServo = data[0];
+  bool geam = (data[0] == 0 ? false : true);
   uint8_t pwmFanL = data[1];
   uint8_t pwmFanR = data[2];
   uint8_t pwmHeat1 = data[3];
@@ -443,24 +456,20 @@ void handleActuatorFrame(const uint8_t* data) {
   bool pump4 = digMask & 0x08;
   bool humidifier = digMask & 0x10;
   bool growLight = digMask & 0x20;
-  bool heater1On = digMask & 0x40;
-  bool heater2On = digMask & 0x80;
+
 
   String actuatorPayload = "{";
-  actuatorPayload += "\"pwmServo\":" + String(pwmServo) + ",";
-  actuatorPayload += "\"pwmFanL\":" + String(pwmFanL) + ",";
-  actuatorPayload += "\"pwmFanR\":" + String(pwmFanR) + ",";
-  actuatorPayload += "\"pwmHeat1\":" + String(pwmHeat1) + ",";
-  actuatorPayload += "\"pwmHeat2\":" + String(pwmHeat2) + ",";
-
-  actuatorPayload += "\"pump1\":\"" + String(pump1 ? "ON" : "OFF") + "\",";
-  actuatorPayload += "\"pump2\":\"" + String(pump2 ? "ON" : "OFF") + "\",";
-  actuatorPayload += "\"pump3\":\"" + String(pump3 ? "ON" : "OFF") + "\",";
+  actuatorPayload += "\"geam\":" + String(geam ? "ON" : "OFF") + ",";
+  actuatorPayload += "\"ventilator1\":" + String(pwmFanL) + ",";
+  actuatorPayload += "\"ventilator2\":" + String(pwmFanR) + ",";
+  actuatorPayload += "\"incalzire1\":" + String(pwmHeat1) + ",";
+  actuatorPayload += "\"incalzire2\":" + String(pwmHeat2) + ",";
+  actuatorPayload += "\"pompa1\":\"" + String(pump1 ? "ON" : "OFF") + "\",";
+  actuatorPayload += "\"pompa2\":\"" + String(pump2 ? "ON" : "OFF") + "\",";
+  actuatorPayload += "\"pompa3\":\"" + String(pump3 ? "ON" : "OFF") + "\",";
   actuatorPayload += "\"pump4\":\"" + String(pump4 ? "ON" : "OFF") + "\",";
-  actuatorPayload += "\"humidifier\":\"" + String(humidifier ? "ON" : "OFF") + "\",";
-  actuatorPayload += "\"growLight\":\"" + String(growLight ? "ON" : "OFF") + "\",";
-  actuatorPayload += "\"heater1\":\"" + String(heater1On ? "ON" : "OFF") + "\",";
-  actuatorPayload += "\"heater2\":\"" + String(heater2On ? "ON" : "OFF") + "\"";
+  actuatorPayload += "\"umidificator\":\"" + String(humidifier ? "ON" : "OFF") + "\",";
+  actuatorPayload += "\"lumina\":\"" + String(growLight ? "ON" : "OFF") + "\",";
   actuatorPayload += "}";
 
   mqttClient.publish(mqttTopicActuatorsAll, actuatorPayload.c_str());
@@ -468,33 +477,22 @@ void handleActuatorFrame(const uint8_t* data) {
   memset(rxBuf, 0, RX_BUF_MAX);
 }
 
-uint8_t dummyFrame[20] = {
-  0x03, 0xE8,  // soilMoisture1 = 1000
-  0x02, 0xBC,  // soilMoisture2 = 700
-  0x01, 0xF4,  // soilMoisture3 = 500
-  80,          //
-  12,          // waterVolume int part = 12
-  34,          // waterVolume decimal part = 0.34 → volume = 12.34
-  0x07, 0xD0,  // dhtTemp = 2000 → 20.00°C
-  0x03, 0xE8,  // dhtHumidity = 1000 → 10.00%
-  0x01, 0x2C,  // lightLevel = 300
-  0x00, 0x00   // CRC placeholder (not checked in test)
-};
-unsigned long t = 0;
 void loop() {
+  // === Serial frame ===
   while (Serial.available() > 0) {
     uint8_t octet = Serial.read();
     uartByteReceived(octet);
   }
+
+  // === WiFi reconnect ===
+  if (WiFi.status() != WL_CONNECTED) {
+    connectWiFi();
+  }
+
+  // === MQTT reconnect ===
   if (!mqttClient.connected()) {
     connectMQTT();
   }
-#if (DEBUG == STD_ON)
-  if (millis() - t > 60000U) {
-    Serial.println("Trimisei datele la server");
-    handleSensorFrame(dummyFrame);
-    t = millis();
-  }
-#endif
+  // === MQTT loop ===
   mqttClient.loop();
 }
