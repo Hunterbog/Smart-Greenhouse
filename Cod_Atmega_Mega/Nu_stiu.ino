@@ -128,7 +128,7 @@ static uint8_t index = 0;
 const int pinHigrometru1 = A0;  // intrare analogica senzor umiditate parcela 1
 const int pinHigrometru2 = A1;  // intrare analogica senzor umiditate parcela 2
 const int pinHigrometru3 = A2;  // intrare analogica senzor umiditate parcela 3
-const int pinUmiLvl = A9;       // intrare analogica senzor umiditate parcela 4
+const int pinUmiLvl = A8;       // intrare analogica senzor umiditate parcela 4
 #define trigPin 52
 #define echoPin 50
 const int pumpPin1 = 41;
