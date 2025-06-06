@@ -160,7 +160,6 @@ int SOIL_MOISTURE_WET_THRESHOLD = 300;  // Sub acest prag, solul e considerat pr
 
 /*========================Sfarsit Resurse Haardware=======================*/
 
-
 /********************variabile pt control a serei******************/
 
 enum CommandAction {
@@ -247,7 +246,6 @@ void setupTimer4() {
   TIMSK4 |= (1 << OCIE4A);  // Permite întreruperea la comparare
   sei();                    // Activează întreruperile
 }
-
 
 
 // Variabile pentru citirea senzorilor la intervale specifice
