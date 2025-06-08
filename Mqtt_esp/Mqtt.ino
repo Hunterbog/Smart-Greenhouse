@@ -33,6 +33,7 @@
 #define UMIDIFICATOR 9
 #define GEAM 10
 #define LUMINA 11
+#define POMPA4 12
 const char ACTUATOR_PKT_ID = 'A';
 const char HARVEST_PKT_ID = 'H';
 const uint16_t poly = 0x1021;
@@ -288,6 +289,9 @@ void handleActuatorCommand(const String& actuator, const String& message) {
   } else if (actuator == "lumina") {
     actuatorPacket.actuator = LUMINA;
     actuatorPacket.state = (message == "ON") ? STD_ON : STD_OFF;
+  }else if (actuator == "pompa4") {
+    actuatorPacket.actuator = POMPA4;
+    actuatorPacket.state = (message == "ON") ? STD_ON : STD_OFF;
   }
 
   crc = computeCRC((uint8_t*)&actuatorPacket, ACTUATOR_FRAME_LEN - 2);
@@ -467,7 +471,7 @@ void handleActuatorFrame(const uint8_t* data) {
   actuatorPayload += "\"pompa1\":\"" + String(pump1 ? "ON" : "OFF") + "\",";
   actuatorPayload += "\"pompa2\":\"" + String(pump2 ? "ON" : "OFF") + "\",";
   actuatorPayload += "\"pompa3\":\"" + String(pump3 ? "ON" : "OFF") + "\",";
-  actuatorPayload += "\"pump4\":\"" + String(pump4 ? "ON" : "OFF") + "\",";
+  actuatorPayload += "\"pompa4\":\"" + String(pump4 ? "ON" : "OFF") + "\",";
   actuatorPayload += "\"umidificator\":\"" + String(humidifier ? "ON" : "OFF") + "\",";
   actuatorPayload += "\"lumina\":\"" + String(growLight ? "ON" : "OFF") + "\",";
   actuatorPayload += "}";
