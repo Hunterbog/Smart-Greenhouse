@@ -66,6 +66,7 @@ unsigned long windowIsOpenedTime = 0;
 #define UMIDIFICATOR 9
 #define GEAM 10
 #define LUMINA 11
+#define POMPA4 12
 
 #define TIME_1_HOUR (60UL * 60UL * 1000UL)  // 1 hour = 3,600,000 ms
 #define TIME_3_HOUR (3 * TIME_1_HOUR)
@@ -743,6 +744,11 @@ void applicationLogic(ControlMode mode) {
           digitalWrite(growLightPin, actuator.value);
           break;
 
+        case POMPA4:
+          Serial.println("→ Activare: POMPA4");
+          digitalWrite(growLightPin, actuator.value);
+          break;
+
         default:
           break;
       }
@@ -1124,6 +1130,7 @@ void handleActuatorFrame(const uint8_t *data) {
     case UMIDIFICATOR:
     case GEAM:
     case LUMINA:
+    case POMPA4:
       actuator.name = data[0];
       actuator.value = data[1];
       break;
