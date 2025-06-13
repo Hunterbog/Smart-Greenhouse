@@ -4,10 +4,16 @@
 #include <Servo.h>
 #include <Wire.h>
 #include <BH1750.h>
+
+#define setbit(data, bit) ((data) |= (1 << (bit)))
+#define SEND_FRAME(pkt) writeFrameWithRetry((uint8_t *)&(pkt), sizeof(pkt))
+
 /*************VARIABILE PT TIMP START**************/
 uint16_t year = 2000;
 uint8_t month = 0, day = 0, hour = 0, minute = 0, second = 0;
 /*************VARIABILE PT TIMP SFARSIT**************/
+
+/*************VARIABILE PT PARAMETRI DE PRAG START**************/
 uint8_t TemperatureDayLowerLimit;
 uint8_t TemperatureDayUpperLimit;
 uint8_t TemperatureNightLowerLimit;
@@ -22,23 +28,31 @@ uint8_t TemperatureLowerLimit;
 uint8_t TemperatureUpperLimit;
 uint8_t HumidityLowerLimit;
 uint8_t HumidityUpperLimit;
+/*************VARIABILE PT PARAMETRI DE PRAG SFARSIT**************/
+
 /*************VARIABILE PT PARAMETRI START**************/
-
-
 const uint8_t comfortRange = 6;
 float hysteresisBuffer = 1.0;
 unsigned long windowIsOpenedTime = 0;
 /*************VARIABILE PT PAARAMETRI SFARSIT**************/
 
-// constante globale
+
 /*********************CONSTANTE GLOBALE INCEPUT*********************/
+#define DHT22Update 2000             // Interval citire DHT22 (ms)
+#define RTCsHumidityUpdate 1000      // Interval citire umiditate sol (ms)
+#define LightSensorUpdate 5000       // Interval citire senzor lumina (ms)
+#define UpdateTxBufferSensors 60000  // Interval trimitere date serial
+#define UpdateTxBufferActuators 2000
+#define RainSensorRead 1000
+#define WaterLvlHumUpdate 100
+#define WaterLevelRead 200
+
 #define FRAME_START 0xAA
 #define STD_ON 1
 #define STD_OFF 0
 #define VALID 0
 #define RELEY_ON 0
 #define RELEY_OFF 1
-#define SEND_FRAME(pkt) writeFrameWithRetry((uint8_t *)&(pkt), sizeof(pkt))
 #define DEBUG STD_ON
 #define MAX_RETRY 3
 #define TIMEOUT_MS 10
@@ -74,11 +88,6 @@ unsigned long windowIsOpenedTime = 0;
 #define TIME_20_MINUTES (2 * TIME_10_MINUTES)
 #define TIME_10_SECONDS (10000UL)
 #define MIN_IDLE_TIME TIME_10_MINUTES
-unsigned long lastWaterTime1 = 0;
-unsigned long lastWaterTime2 = 0;
-unsigned long lastWaterTime3 = 0;
-
-
 #define RX_BUF_MAX 32
 const char ACTUATOR_PKT_ID = 'A';
 const char HARVEST_PKT_ID = 'H';
@@ -90,8 +99,20 @@ const int poly = 0x1021;  // CRC-CCITT polynomial
 #define TX_BUFF_SIZE 28
 #define NOTALLOWED 0
 #define ALLOWED 0xF
-/*********************CONSTANTE GLOBALE SFARSIT*********************/
 
+#define SERVO_CLOSED 165  // Poziția închisă a servo-ului
+#define SERVO_OPENED 40   // Poziția deschisă a servo-ului
+#define SERVO_DELAY 15    // Întârzierea între incrementări (ms)
+#define LOW_LVL_HUM 100
+#define HIGH_LVL_HUM 500
+#define LOW_LIGHT_LEVEL 20
+#define OPTIMAL_LIGHT_LEVEL 450
+
+const int SOIL_MOISTURE_DRY_THRESHOLD = 800;  // Solul e considerat uscat peste acest prag
+const int SOIL_MOISTURE_OPTIMAL_MIN = 301;    // Începutul zonei de umiditate optimă
+const int SOIL_MOISTURE_OPTIMAL_MAX = 799;    // Sfârșitul zonei de umiditate optimă
+const int SOIL_MOISTURE_WET_THRESHOLD = 300;  // Sub acest prag, solul e considerat prea ud
+/*********************CONSTANTE GLOBALE SFARSIT*********************/
 
 typedef struct
 {
@@ -111,17 +132,7 @@ static uint8_t packetLength = 0;
 static uint8_t index = 0;
 /********VARIABILE PT FSM SERIAL SFARSIT***********/
 
-#define setbit(data, bit) ((data) |= (1 << (bit)))
 
-// Definire constante pentru timpi
-#define DHT22Update 2000         // Interval citire DHT22 (ms)
-#define RTCsHumidityUpdate 1000  // Interval citire umiditate sol (ms)
-#define LightSensorUpdate 5000   // Interval citire senzor lumina (ms)
-#define UpdateTxBuffer 1000      // Interval trimitere date serial
-#define RainSensorRead 1000
-#define WaterLvlHumUpdate 100
-#define WaterLevelRead 200
-// Definire pinii pentru senzori și actuatori
 
 /*========================Resurse Haardware=======================*/
 #define DHTPIN A7
@@ -145,20 +156,8 @@ const int rainPin = 47;
 #define ventilatorLeftPin 10   // Pinul pentru ventilatoare
 #define growLightPin 21        // Pinul pentru lumina de creștere
 #define ventilatorRightPin 11  // Pinul pentru ventilatoare
-// Definire pinii și constante pentru servo (geam de aerisire)
-#define SERVO_PIN 2       // Pinul pentru servo
-#define SERVO_CLOSED 165  // Poziția închisă a servo-ului
-#define SERVO_OPENED 40   // Poziția deschisă a servo-ului
-#define SERVO_DELAY 15    // Întârzierea între incrementări (ms)
-#define LOW_LVL_HUM 100
-#define HIGH_LVL_HUM 500
-#define LOW_LIGHT_LEVEL 20
-#define OPTIMAL_LIGHT_LEVEL 450
-int SOIL_MOISTURE_DRY_THRESHOLD = 800;  // Solul e considerat uscat peste acest prag
-int SOIL_MOISTURE_OPTIMAL_MIN = 301;    // Începutul zonei de umiditate optimă
-int SOIL_MOISTURE_OPTIMAL_MAX = 799;    // Sfârșitul zonei de umiditate optimă
-int SOIL_MOISTURE_WET_THRESHOLD = 300;  // Sub acest prag, solul e considerat prea ud
 
+#define SERVO_PIN 2  // Pinul pentru servo
 /*========================Sfarsit Resurse Haardware=======================*/
 
 /********************variabile pt control a serei******************/
@@ -212,6 +211,10 @@ float waterVolume = 0.0;
 BH1750 lightMeter;
 /*===========================SENZORI-SFARSIT===========================*/
 
+/*===========================VARIABILE-INCEPUT===========================*/
+unsigned long lastWaterTime1 = 0;
+unsigned long lastWaterTime2 = 0;
+unsigned long lastWaterTime3 = 0;
 unsigned long pompaTime1 = 0;
 unsigned long pompaTime2 = 0;
 unsigned long pompaTime3 = 0;  // Timpul la pornirea pompei
@@ -230,24 +233,7 @@ volatile int curentPos = SERVO_CLOSED;
 unsigned long prevServoTime = 0;
 bool isDeatached = false;
 volatile uint8_t allowWindow = 0xF;
-
-/******************************Configurare Timer4*********************************************
-Vreau sa generez o intrerupere la fiecare 20ms => Fint = 1/20ms = 1/0.02s = 50Hz
-OCR = (Fclk/P*Fint) - 1 => OCR = (16Mhz/P*50Hz) - 1 => pt P = 8 avem OCR = 40000 - 1 = 39999
-**********************************************************************************************/
-
-void setupTimer4() {
-  cli();       // Dezactivează întreruperile
-  TCCR4A = 0;  // Resetează registrul Timer4
-  TCCR4B = 0;
-  TCNT4 = 0;
-  OCR4A = 39999;            // Configurat pentru contorizare
-  TCCR4B |= (1 << WGM12);   // Mod CTC
-  TCCR4B |= (1 << CS41);    // Prescaler 8
-  TIMSK4 |= (1 << OCIE4A);  // Permite întreruperea la comparare
-  sei();                    // Activează întreruperile
-}
-
+/*===========================VARIABILE-SFARSIT===========================*/
 
 // Variabile pentru citirea senzorilor la intervale specifice
 unsigned long previousDHT22Millis = 0;
@@ -288,8 +274,6 @@ void setup() {
   Serial.begin(115200);
   Serial3.begin(115200);
   dht.begin();
-  // Configurare Timer4
-  setupTimer4();
   // Inițializări pentru lumina de creștere (artificială)
   growLightState = false;
   // Inițializare servo (geam de aerisire)
@@ -308,7 +292,6 @@ void allowWindowToWork() {
 }
 
 void loop() {
-  updateTime();
   while (Serial3.available() > 0) {
     uint8_t octet = Serial3.read();
     uartByteReceived(octet);
@@ -317,91 +300,29 @@ void loop() {
     case IDLE:
       break;
     case STOP:
-      digitalWrite(pumpPin1, LOW);
-      digitalWrite(pumpPin2, LOW);
-      digitalWrite(pumpPin3, LOW);
-      digitalWrite(pumpPin4, LOW);
-      analogWrite(heatingPin_S1b, LOW);
-      analogWrite(heatingPin_S2b, LOW);
-      digitalWrite(heatingPin_S1a, RELAY_OFF);
-      digitalWrite(heatingPin_S2a, RELAY_OFF);
-      digitalWrite(humidifierPin, RELAY_OFF);
-      analogWrite(ventilatorLeftPin, LOW);
-      analogWrite(ventilatorRightPin, LOW);
-      digitalWrite(growLightPin, LOW);
-      digitalWrite(rainPin, LOW);
-      TIMSK4 &= ~(1 << OCIE4A);
-      ADCSRA &= ~(1 << ADEN);  // Disable ADC to save power
+      shutdownAllActuators();
       FirstReadSensors = 0;
       command = IDLE;
-      //SERA nu functioneaza
       break;
     case START:
       mode = AUTOMATED;
-      TIMSK4 |= (1 << OCIE4A);
-      ADCSRA |= (1 << ADEN);
       command = RUNNING;
       break;
     case RUNNING:
-
-      // Citire senzor DHT22 la intervale specifice
-      if (millis() - previousDHT22Millis >= DHT22Update) {
-        previousDHT22Millis = millis();
-        readTemperatureHumiditySensor();
-      }
-
-      // Citire senzor umiditate sol la intervale specifice
-      if (millis() - previousMoistureMillis >= RTCsHumidityUpdate) {
-        previousMoistureMillis = millis();
-        readMoistureSensor();
-      }
-
-      // Citire senzor lumină la intervale specifice
-      if (millis() - previousLightMillis >= LightSensorUpdate) {
-        previousLightMillis = millis();
-        readLightSensor();
-      }
-
-      if (millis() - previousWaterLvlHumMillis >= WaterLvlHumUpdate) {
-        previousWaterLvlHumMillis = millis();
-        readWaterLvlHum();
-      }
-
-      if (millis() - prevRainSensorRead >= RainSensorRead && mode == AUTOMATED) {  //in mod manual vreau sa fiu capabil sa deshid geamul chiar daca ploua:)
-        prevRainSensorRead = millis();
-        allowWindowToWork();
-      }
-
-      if ((millis() - prevWaterLevel >= WaterLevelRead) && (digitalRead(pumpPin1) == LOW && digitalRead(pumpPin2) == LOW && digitalRead(pumpPin3) == LOW)) {
-        prevWaterLevel = millis();
-        readWaterLevel();
-      }
-
-      if (millis() - prevUpdateTxBufferActuators >= UpdateTxBuffer && (FirstReadSensors == FIRST_SENSORS_READ) && mode == AUTOMATED) {
-        prevUpdateTxBufferActuators = millis();
-        updateSerialBufferActuators();
-      }
-      if (millis() - prevUpdateTxBufferSensors >= 60000 && (FirstReadSensors == FIRST_SENSORS_READ)) {
-        Serial.println("trimisei date la server");
-        prevUpdateTxBufferSensors = millis();
-        updateSerialBufferSensors();
-      }
-
+      readAllSensors();
+      updateCommunicationBuffers();
       applicationLogic(mode);
-
       break;
-
     default:
       break;
   }
+  updateTime();
 }
 
 void readLightSensor() {
   const int numSamples = 12;
   static int samples[numSamples] = { 0 };
   static int index = 0;
-
-  // Take a new reading
   samples[index++] = lightMeter.readLightLevel();
   if (index == numSamples) {
     index = 0;
@@ -642,7 +563,6 @@ void controlWaterSystem() {
 // - Activarea forțată a ventilatoarelor și a sistemului de mist la temperaturi ridicate
 // - Controlul luminii artificiale
 void applicationLogic(ControlMode mode) {
-  // Logica Geam
   static unsigned long lastMoveTime = 0;
   if (millis() - lastMoveTime >= 20) {  // la fiecare 20ms
     lastMoveTime = millis();
@@ -661,51 +581,32 @@ void applicationLogic(ControlMode mode) {
       }
     }
   }
+
   switch (mode) {
     case AUTOMATED:
-      allowHumidifierToWork();
-      // timpAnte = millis();
-      if (FirstReadSensors == FIRST_SENSORS_READ) {
+      if (FirstReadSensors == ESSENTIAL_SENSORS_READY) {
+        allowHumidifierToWork();
         controlWeatherSystem();
-        //Serial.println("Durata sa fac operatie de controlVentilationSystem " + String(millis() - timpAnte));
-        // timpAnte = millis();
-        //Controlul sistemului de lumina artificiala
         controlGrowLight();
-        //Serial.println("Durata sa fac operatie de controlGrowLight " + String(millis() - timpAnte));
-        // Controlul sistemului de udare
-        //timpAnte = millis();
         controlWaterSystem();
       }
-      // Serial.println("Durata sa fac operatie de controlWaterSystem " + String(millis() - timpAnte));
-      //Controlul sistemului de ventilatie
       break;
 
     case MANUAL:
-      if (actuator.name != 0 || actuator.value != 0) {
-        Serial.print("MANUAL command received → actuator.name: ");
-        Serial.print(actuator.name);
-        Serial.print(" | actuator.value: ");
-        Serial.println(actuator.value);
-      }
-
       switch (actuator.name) {
         case POMPA1:
-          Serial.println("→ Activare: POMPA1");
           digitalWrite(pumpPin1, actuator.value);
           break;
 
         case POMPA2:
-          Serial.println("→ Activare: POMPA2");
           digitalWrite(pumpPin2, actuator.value);
           break;
 
         case POMPA3:
-          Serial.println("→ Activare: POMPA3");
           digitalWrite(pumpPin3, actuator.value);
           break;
 
         case VENTILATOR1:
-          Serial.println("→ Activare: VENTILATOR1");
           analogWrite(ventilatorLeftPin, actuator.value == 0 ? 0 : map(actuator.value, 1, 100, 50, 255));
           break;
 
@@ -758,9 +659,6 @@ void applicationLogic(ControlMode mode) {
   }
 }
 
-
-ISR(TIMER4_COMPA_vect) {
-}
 
 int getMedian(int arr[], int size) {
   int sorted[size];
@@ -825,12 +723,21 @@ void controlWeatherSystem() {
     HumidityUpperLimit = HumidityNightLowerLimit;
   }
 
-  if ((dhtTemp > TemperatureLowerLimit) && (dhtTemp < TemperatureUpperLimit))
-    temperature = NORMAL_TEMP;
-  else if (dhtTemp >= TemperatureUpperLimit + hysteresisBuffer)
-    temperature = HIGH_TEMP;
-  else if (dhtTemp <= TemperatureLowerLimit - hysteresisBuffer)
-    temperature = LOW_TEMP;
+if (temperature == NORMAL_TEMP) {
+    if (dhtTemp >= TemperatureUpperLimit + hysteresisBuffer) {
+        temperature = HIGH_TEMP;
+    } else if (dhtTemp <= TemperatureLowerLimit - hysteresisBuffer) {
+        temperature = LOW_TEMP;
+    }
+} else if (temperature == HIGH_TEMP) {
+    if (dhtTemp <= TemperatureUpperLimit - hysteresisBuffer) {
+        temperature = NORMAL_TEMP;
+    }
+} else if (temperature == LOW_TEMP) {
+    if (dhtTemp >= TemperatureLowerLimit + hysteresisBuffer) {
+        temperature = NORMAL_TEMP;
+    }
+}
 
   switch (temperature) {
     case HIGH_TEMP:
@@ -886,12 +793,24 @@ void controlWeatherSystem() {
         if (dhtHumidity < HumidityLowerLimit - hysteresisBuffer) {  //Nivelul de umidate este MIC
           requireWindow = false;
           if (allowHumToWork) { digitalWrite(humidifierPin, RELAY_ON); }
-          analogWrite(ventilatorLeftPin, 0);
-          analogWrite(ventilatorRightPin, 0);
-          ventilatorLastValue = 0;
-          IdleTime = millis();
+          if (millis() - FansTime > TIME_10_MINUTES && FansState) {
+            FansState = false;
+            analogWrite(ventilatorLeftPin, 0);
+            analogWrite(ventilatorRightPin, 0);
+            ventilatorLastValue = 0;
+            FansTime = 0;
+            IdleTime = millis();
+          }
+          if (millis() - IdleTime >= TIME_1_HOUR && (!FansState)) {
+            FansState = true;
+            FansTime = millis();
+            analogWrite(ventilatorLeftPin, 100);
+            analogWrite(ventilatorRightPin, 100);
+            ventilatorLastValue = 100;
+          }
         } else if (dhtHumidity > HumidityUpperLimit + hysteresisBuffer) {  //Nivelul de umidate este MARE
-          //digitalWrite(humidifierPin, RELAY_OFF);
+          digitalWrite(humidifierPin, RELAY_OFF);
+          digitalWrite(humidifierPin, RELAY_OFF);
           analogWrite(ventilatorLeftPin, 200);
           analogWrite(ventilatorRightPin, 200);
           ventilatorLastValue = 200;
@@ -899,7 +818,7 @@ void controlWeatherSystem() {
           FansState = requireWindow = true;
         } else {  //Nivelul de umiditate este OPTIM -- deschid geamul la diferite intervale de timp si dau drumul la ventilatoare la diferite intervale de timp - la fiecare ora le las timp de 10 min
 
-          if (digitalRead(humidifierPin) == RELAY_OFF && dhtHumidity < ((HumidityLowerLimit + HumidityUpperLimit) / 2.0 - hysteresisBuffer) {
+          if (digitalRead(humidifierPin) == RELAY_OFF && dhtHumidity < ((HumidityLowerLimit + HumidityUpperLimit) / 2.0 - hysteresisBuffer)) {
             digitalWrite(humidifierPin, RELAY_ON);
           } else if (digitalRead(humidifierPin) == RELAY_ON && dhtHumidity >= ((HumidityLowerLimit + HumidityUpperLimit) / 2.0)) {
             digitalWrite(humidifierPin, RELAY_OFF);
@@ -924,14 +843,24 @@ void controlWeatherSystem() {
       }
     case LOW_TEMP:
       {
-        requireWindow = false;                                             //In cazul temperaturilor scazute nu deschid geamul dar aerisesc folosind ventilatoare
-        ControlHeatingSystem(STD_ON);                                      // pornesc caldura
+        requireWindow = false;     
+        digitalWrite(humidifierPin, RELAY_OFF);                                        //In cazul temperaturilor scazute nu deschid geamul dar aerisesc folosind ventilatoare
+        ControlHeatingSystem(STD_ON);                                      // pornesc caldura // mai am de facut
         if (dhtHumidity < (float)HumidityLowerLimit - hysteresisBuffer) {  //Nivelul de umidate este JOS; In Romania, iernile nu sunt caracterizate de umidiate scazuta
-          analogWrite(ventilatorLeftPin, 0);
-          analogWrite(ventilatorRightPin, 0);
-          ventilatorLastValue = 0;
-          IdleTime = millis();
-          FansState = false;
+          if (millis() - FansTime > TIME_10_MINUTES && FansState) {
+            FansState = false;
+            analogWrite(ventilatorLeftPin, 0);
+            analogWrite(ventilatorRightPin, 0);
+            ventilatorLastValue = 0;
+            IdleTime = millis();
+          }
+          if (millis() - IdleTime >= TIME_3_HOUR && !FansState) {
+            FansState = true;
+            FansTime = millis();
+            analogWrite(ventilatorLeftPin, 100);
+            analogWrite(ventilatorRightPin, 100);
+            ventilatorLastValue = 100;
+          }
         } else if (dhtHumidity > (float)HumidityUpperLimit + hysteresisBuffer) {  //Nivelul de umidate este MARE
           if (millis() - FansTime > TIME_20_MINUTES && FansState) {
             FansState = false;
@@ -943,9 +872,9 @@ void controlWeatherSystem() {
           if (millis() - IdleTime >= TIME_3_HOUR && !FansState) {
             FansState = true;
             FansTime = millis();
-            analogWrite(ventilatorLeftPin, 50);
-            analogWrite(ventilatorRightPin, 50);
-            ventilatorLastValue = 50;
+            analogWrite(ventilatorLeftPin, 100);
+            analogWrite(ventilatorRightPin, 100);
+            ventilatorLastValue = 100;
           }
         } else {  //Nivelul de umidaitate este OPTIM -- dau drumul la ventilatoare la diferite intervale de timp - la fiecare 3 ore le las timp de 10 min
           if (millis() - FansTime > TIME_10_MINUTES && FansState) {
@@ -1005,13 +934,7 @@ void updateSerialBufferActuators() {
     Tx_BufferActuators[10] = uint8_t(crc >> 8);
     Tx_BufferActuators[11] = uint8_t(crc & 0xFF);
     SEND_FRAME(Tx_BufferActuators);
-
-    // Serial.print("Trimit noile stari ale actuatorilor. CRC-ul este: ");
-    //Serial.println(computeCRC(Tx_BufferActuators, ACT_BUFF_SIZE));
-
   } else {
-
-    // Serial.println("Nu trimit datele actuatorilor pt ca nu sunt schimbari");
   }
 }
 
@@ -1077,19 +1000,9 @@ void uartByteReceived(uint8_t octet) {
       index = 0;
       rxState = WAIT_PAYLOAD;
       break;
-
-
     case WAIT_PAYLOAD:
       rxBuf[2 + index++] = octet;
       if (index == packetLength - 2) {
-        // DEBUG: Afișează tot rxBuf
-        // Serial.print("rxBuf: ");
-        // for (int i = 0; i < packetLength; i++) {
-        //   Serial.print(rxBuf[i], HEX);
-        //   Serial.print(" ");
-        // }
-        // Serial.println();
-
         if (computeCRC(rxBuf, packetLength) == VALID) {
           Serial3.write(ACK);
           if (rxBuf[2] == ACTUATOR_PKT_ID) {
@@ -1099,7 +1012,6 @@ void uartByteReceived(uint8_t octet) {
           }
         } else {
           Serial3.write(NAK);
-          // Serial.print("NAK: CRC invalid - ");
         }
         rxState = WAIT_START;
       }
@@ -1112,13 +1024,7 @@ void handleActuatorFrame(const uint8_t *data) {
   switch (data[0]) {
     case CONTROL_SERA:
       mode = (data[1] == STD_ON) ? MANUAL : AUTOMATED;
-      if (mode == MANUAL) {
-        Serial.println("MOD: MANUAL");
-      } else {
-        Serial.println("MOD: AUTOMATED");
-      }
       break;
-
 
     case POMPA1:
     case POMPA2:
@@ -1145,15 +1051,12 @@ void handleActuatorFrame(const uint8_t *data) {
 void handleHarvestFrame(const uint8_t *data) {
 
   if (data[0] == 'P') {
-    Serial.println("Pornit");
     command = START;
   } else if (data[0] == 'O') {
-    Serial.println("Oprit");
     command = STOP;
     return;
   } else if (data[0] == 'R') {
-    Serial.println("Ruleaza");
-    command = RUNNING;  // teoretic nu fac nimic;
+    command = RUNNING;
   }
 
   TemperatureDayLowerLimit = data[1];
@@ -1196,18 +1099,11 @@ void allowHumidifierToWork() {
     digitalWrite(pumpPin4, LOW);
     allowHumToWork = false;
   } else if (waterLvlHum >= LOW_LVL_HUM && waterLvlHum < HIGH_LVL_HUM) {
-
     digitalWrite(pumpPin4, HIGH);
-#if DEBUG == STD_ON
-    Serial.println("Pornesc pompa 4");
-#endif
     allowHumToWork = true;
   } else {
     if (waterVolume > VOLUM_SUFICIENT_APA) {
       digitalWrite(pumpPin4, HIGH);
-#if DEBUG == STD_ON
-      Serial.println("Pornesc pompa 4");
-#endif
       allowHumToWork = true;
     } else {
       digitalWrite(pumpPin4, LOW);
@@ -1217,7 +1113,6 @@ void allowHumidifierToWork() {
 }
 
 /**************COD CEAS******************/
-
 int weekday(int d, int m, int y) {
   if (m < 3) {
     m += 12;
@@ -1249,12 +1144,10 @@ void updateTime() {
     if (second >= 60) {
       second = 0;
       minute++;
-
       if (minute >= 60) {
         minute = 0;
         hour++;
 
-        // Incrementare zi
         if (hour >= 24) {
           hour = 0;
           day++;
@@ -1300,4 +1193,64 @@ bool writeFrameWithRetry(const uint8_t *buf, size_t len) {
     }
   }
   return false;
+}
+
+void shutdownAllActuators() {
+  digitalWrite(pumpPin1, LOW);
+  digitalWrite(pumpPin2, LOW);
+  digitalWrite(pumpPin3, LOW);
+  digitalWrite(pumpPin4, LOW);
+  analogWrite(heatingPin_S1b, LOW);
+  analogWrite(heatingPin_S2b, LOW);
+  digitalWrite(heatingPin_S1a, RELAY_OFF);
+  digitalWrite(heatingPin_S2a, RELAY_OFF);
+  digitalWrite(humidifierPin, RELAY_OFF);
+  analogWrite(ventilatorLeftPin, LOW);
+  analogWrite(ventilatorRightPin, LOW);
+  digitalWrite(growLightPin, LOW);
+  digitalWrite(rainPin, LOW);
+}
+
+void readAllSensors() {
+  // Citire senzor DHT22 la intervale specifice
+  if (millis() - previousDHT22Millis >= DHT22Update) {
+    previousDHT22Millis = millis();
+    readTemperatureHumiditySensor();
+  }
+  // Citire senzor umiditate sol la intervale specifice
+  if (millis() - previousMoistureMillis >= RTCsHumidityUpdate) {
+    previousMoistureMillis = millis();
+    readMoistureSensor();
+  }
+  // Citire senzor lumină la intervale specifice
+  if (millis() - previousLightMillis >= LightSensorUpdate) {
+    previousLightMillis = millis();
+    readLightSensor();
+  }
+
+  if (millis() - previousWaterLvlHumMillis >= WaterLvlHumUpdate) {
+    previousWaterLvlHumMillis = millis();
+    readWaterLvlHum();
+  }
+
+  if (millis() - prevRainSensorRead >= RainSensorRead && mode == AUTOMATED) {  //in mod manual vreau sa fiu capabil sa deshid geamul chiar daca ploua:)
+    prevRainSensorRead = millis();
+    allowWindowToWork();
+  }
+
+  if ((millis() - prevWaterLevel >= WaterLevelRead) && (digitalRead(pumpPin1) == LOW && digitalRead(pumpPin2) == LOW && digitalRead(pumpPin3) == LOW)) {
+    prevWaterLevel = millis();
+    readWaterLevel();
+  }
+}
+
+void updateCommunicationBuffers() {
+  if (millis() - prevUpdateTxBufferActuators >= UpdateTxBufferActuators && (FirstReadSensors == ESSENTIAL_SENSORS_READY) && mode == AUTOMATED) {
+    prevUpdateTxBufferActuators = millis();
+    updateSerialBufferActuators();
+  }
+  if (millis() - prevUpdateTxBufferSensors >= UpdateTxBufferSensors && (FirstReadSensors == ESSENTIAL_SENSORS_READY)) {
+    prevUpdateTxBufferSensors = millis();
+    updateSerialBufferSensors();
+  }
 }
