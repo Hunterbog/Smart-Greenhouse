@@ -121,7 +121,7 @@ const char* mqttPassword = "Ashford1875";
 // === MQTT Topics ===
 const char* mqttTopicData = "myhome/esp8266/data";
 const char* mqttTopicActuatorsAll = "myhome/esp8266/actuators/all";
-const char* mqttTopicSubscribe = "myhome/esp8266/actuators/#";
+const char* mqttTopicSubscribe = "myhome/esp8266/actuator/#";
 const char* mqttTopicGreenhouseStatus = "myhome/greenhouse/status";
 
 WiFiClientSecure espClient;
@@ -464,7 +464,7 @@ void handleActuatorFrame(const uint8_t* data) {
 
 
   String actuatorPayload = "{";
-  actuatorPayload += "\"geam\":" + String(geam ? "ON" : "OFF") + ",";
+  actuatorPayload += "\"geam\":\"" + String(geam ? "ON" : "OFF") + "\",";
   actuatorPayload += "\"ventilator1\":" + String(pwmFanL) + ",";
   actuatorPayload += "\"ventilator2\":" + String(pwmFanR) + ",";
   actuatorPayload += "\"incalzire1\":" + String(pwmHeat1) + ",";
@@ -474,7 +474,7 @@ void handleActuatorFrame(const uint8_t* data) {
   actuatorPayload += "\"pompa3\":\"" + String(pump3 ? "ON" : "OFF") + "\",";
   actuatorPayload += "\"pompa4\":\"" + String(pump4 ? "ON" : "OFF") + "\",";
   actuatorPayload += "\"umidificator\":\"" + String(humidifier ? "ON" : "OFF") + "\",";
-  actuatorPayload += "\"lumina\":\"" + String(growLight ? "ON" : "OFF") + "\",";
+  actuatorPayload += "\"lumina\":\"" + String(growLight ? "ON" : "OFF") + "\"";
   actuatorPayload += "}";
 
   mqttClient.publish(mqttTopicActuatorsAll, actuatorPayload.c_str());
