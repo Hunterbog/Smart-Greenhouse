@@ -19,7 +19,6 @@
 #define FRAME_START 0xAA
 #define ACTUATOR_FRAME_LEN 8
 #define HARVEST_FRAME_LEN 20
-
 #define BUFFER_SIZE 21
 
 #define CONTROL_SERA 1
@@ -289,7 +288,7 @@ void handleActuatorCommand(const String& actuator, const String& message) {
   } else if (actuator == "lumina") {
     actuatorPacket.actuator = LUMINA;
     actuatorPacket.state = (message == "ON") ? STD_ON : STD_OFF;
-  }else if (actuator == "pompa4") {
+  } else if (actuator == "pompa4") {
     actuatorPacket.actuator = POMPA4;
     actuatorPacket.state = (message == "ON") ? STD_ON : STD_OFF;
   }
@@ -320,12 +319,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
   for (unsigned int i = 0; i < length; i++) {
     message += (char)payload[i];
   }
-
   if (topicStr.startsWith("myhome/greenhouse/status")) {
     handleGreenhouseStatus(message);
-    Serial.println("Mesajul a ajuns in callback");
-  } else if (topicStr.startsWith("myhome/esp8266/actuators/")) {
-    String actuator = topicStr.substring(String("myhome/esp8266/actuators/").length());
+  } else if (topicStr.startsWith("myhome/esp8266/actuator/")) {
+    String actuator = topicStr.substring(String("myhome/esp8266/actuator/").length());
     handleActuatorCommand(actuator, message);
   }
 }
@@ -418,6 +415,10 @@ void handleSensorFrame(const uint8_t* data) {
   uint16_t soil2 = (data[2] << 8) | data[3];
   uint16_t soil3 = (data[4] << 8) | data[5];
 
+  uint8_t soil1Percent = constrain(map(soil1, 1015, 150, 0, 100), 0, 100);
+  uint8_t soil2Percent = constrain(map(soil2, 1015, 150, 0, 100), 0, 100);
+  uint8_t soil3Percent = constrain(map(soil3, 1015, 150, 0, 100), 0, 100);
+
   uint8_t waterLevel = data[6];
 
   float waterVolume = float(data[7]) + float(data[8]) / 100.0f;
@@ -430,9 +431,9 @@ void handleSensorFrame(const uint8_t* data) {
   uint16_t lightLevel = (data[13] << 8) | data[14];
 
   String sensorPayload = "{";
-  sensorPayload += "\"soil1\":" + String(soil1) + ",";
-  sensorPayload += "\"soil2\":" + String(soil2) + ",";
-  sensorPayload += "\"soil3\":" + String(soil3) + ",";
+  sensorPayload += "\"soil1Percent\":" + String(soil1) + ",";
+  sensorPayload += "\"soil2Percent\":" + String(soil2) + ",";
+  sensorPayload += "\"soil3Percent\":" + String(soil3) + ",";
   sensorPayload += "\"waterLevel\":" + String(waterLevel) + ",";
   sensorPayload += "\"waterVolume\":" + String(waterVolume, 2) + ",";
   sensorPayload += "\"temperature\":" + String(dhtTemp, 2) + ",";
