@@ -140,7 +140,7 @@ static uint8_t index = 0;
 const int pinHigrometru1 = A0;  // intrare analogica senzor umiditate parcela 1
 const int pinHigrometru2 = A1;  // intrare analogica senzor umiditate parcela 2
 const int pinHigrometru3 = A2;  // intrare analogica senzor umiditate parcela 3
-const int pinUmiLvl = A8;       // intrare analogica senzor umiditate parcela 4
+const int pinUmiLvl = A9;       // intrare analogica senzor umiditate parcela 4
 #define trigPin 52
 #define echoPin 50
 const int pumpPin1 = 41;
@@ -150,11 +150,11 @@ const int pumpPin4 = 39;
 const int heatingPin_S1b = 3;  //iesire PWM
 const int heatingPin_S1a = 27;
 const int heatingPin_S2b = 4;  //iesire PWM
-const int heatingPin_S2a = 25;
+const int heatingPin_S2a = 26;
 const int rainPin = 47;
-#define humidifierPin 22       // Pinul pentru umidificator (și sistemul de mist)
+#define humidifierPin 21       // Pinul pentru umidificator (și sistemul de mist)
 #define ventilatorLeftPin 10   // Pinul pentru ventilatoare
-#define growLightPin 21        // Pinul pentru lumina de creștere
+#define growLightPin 22        // Pinul pentru lumina de creștere
 #define ventilatorRightPin 11  // Pinul pentru ventilatoare
 
 #define SERVO_PIN 2  // Pinul pentru servo
@@ -199,7 +199,7 @@ Temperature temperature = NORMAL_TEMP;
 // Definire DHT
 DHT dht(DHTPIN, DHTTYPE);
 uint8_t FirstReadSensors = 0;
-#define FIRST_SENSORS_READ 0xF
+#define ESSENTIAL_SENSORS_READY 0xF
 // Declarație variabile pentru senzori și timp
 /*===========================SENZORI-INCEPUT===========================*/
 unsigned int soilMoisture1, soilMoisture2, soilMoisture3;
