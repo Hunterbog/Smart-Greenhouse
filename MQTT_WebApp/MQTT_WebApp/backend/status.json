@@ -1,13 +1,14 @@
 {
-  "mod": "ON",
-  "pompa1": "OFF",
   "geam": "OFF",
-  "umidificator": "OFF",
-  "pompa3": "OFF",
-  "pompa2": "OFF",
+  "ventilator1": "0",
+  "ventilator2": "0",
   "incalzire1": "0",
   "incalzire2": "0",
-  "ventilator1": "0",
-  "ventilator2": "100",
-  "lumina": "OFF"
+  "pompa1": "OFF",
+  "pompa2": "OFF",
+  "pompa3": "OFF",
+  "pompa4": "OFF",
+  "umidificator": "OFF",
+  "lumina": "OFF",
+  "mod": "OFF"
 }

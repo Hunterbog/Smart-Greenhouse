@@ -28,7 +28,6 @@ def handle_plants():
 
             planting_date = datetime.now()
             plants_history.update_many({}, {"$set": {"active": False}})
-
             plant_doc = {
                 "planting_date": planting_date.strftime("%Y-%m-%d"),
                 "optimal_temp_day": temp_day,
@@ -37,12 +36,11 @@ def handle_plants():
                 "optimal_humidity_night": humidity_night,
                 "active": True
             }
-
             plants_history.insert_one(plant_doc)
-
             timestamp = planting_date.strftime("%Y-%m-%d %H:%M:%S")
             mqtt_payload = f"True,{temp_day},{humidity_day},{temp_night},{humidity_night},{timestamp}"
             mqtt_client.publish("myhome/greenhouse/status", mqtt_payload)
+            print("Payload trimis MQTT:", mqtt_payload)
 
             return jsonify({"status": "success"}), 201
 
@@ -58,9 +56,9 @@ def handle_plants():
             logging.exception(e)
             return jsonify({"error": str(e)}), 404
         
-@plants_history_bp.route('/plants_update', methods=['GET', 'POST'])
+@plants_history_bp.route('/plants_update', methods=['GET', 'PUT'])
 def send_commands():
-    if request.method == 'POST':
+    if request.method == 'PUT':
         data = request.get_json()
 
         try:
@@ -82,7 +80,7 @@ def send_commands():
             timestamp = command_date.strftime("%Y-%m-%d %H:%M:%S")
             mqtt_payload = f"Running,{temp_day},{humidity_day},{temp_night},{humidity_night},{timestamp}"
             mqtt_client.publish("myhome/greenhouse/status", mqtt_payload)
-
+            print("Payload trimis MQTT:", mqtt_payload)
             return jsonify({"status": "success"}), 201
 
         except Exception as e:
@@ -105,9 +103,6 @@ def send_commands():
         except Exception as e:
             logging.exception(e)
             return jsonify({"error": str(e)}), 500
-
-    
-
 
 @plants_history_bp.route('/plants_history/harvest', methods=['POST'])
 def harvest_active_crop():

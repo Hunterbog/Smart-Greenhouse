@@ -4,7 +4,7 @@ async function initActuatorPage() {
   const btnAuto = document.getElementById('btn-automat');
   const btnManual = document.getElementById('btn-manual');
 
-  const logicActuators = ['pompa1', 'pompa2', 'pompa3', 'umidificator', 'geam', 'lumina'];
+  const logicActuators = ['pompa1', 'pompa2', 'pompa3', 'umidificator', 'geam', 'lumina', 'pompa4'];
   const analogActuators = ['ventilator1', 'ventilator2', 'incalzire1', 'incalzire2'];
 
   function updateActuatorVisibility(state) {
@@ -75,7 +75,21 @@ async function initActuatorPage() {
 
     el.addEventListener('change', async function (e) {
       const newState = e.target.checked ? 'ON' : 'OFF';
-
+      if (name === 'pompa4' && newState === 'ON') {
+        try {
+          const res = await fetch('/api/latest-waterlevel');
+          const data = await res.json();
+          if (data.waterLevel >= 90) {
+            alert("Nivelul apei din rezervor este peste 90%. Pompa nu poate fi pornită.");
+            el.checked = false;
+            return;
+          }
+        } catch (err) {
+          alert("Nu s-a putut verifica nivelul apei.");
+          el.checked = false;
+          return;
+        }
+      }
       try {
         await fetch('/actuator/' + name, {
           method: 'POST',

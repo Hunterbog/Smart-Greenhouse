@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <title>Supraveghere Seră</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+
+    .stream-container {
+      margin: 40px auto;
+      max-width: 800px;
+      border: 3px solid #2ecc71;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .stream-container img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    h1 {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  {% include 'navbar.html' %}
+  <h1>Stream Live din Seră</h1>
+  <div class="stream-container">
+    <img src="http://192.168.100.29:81/stream" alt="Stream ESP32-CAM">
+  </div>
+</body>
+</html>

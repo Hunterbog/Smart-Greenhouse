@@ -1,38 +1,69 @@
 <!DOCTYPE html>
 <html lang="ro">
+
 <head>
   <meta charset="UTF-8">
   <title>Planificare Recoltă</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-   
+  <script src="https://cdn.jsdelivr.net/npm/nouislider@15.6.1/dist/nouislider.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.6.1/dist/nouislider.min.css">
+
 </head>
+
 <body>
+
   {% include 'navbar.html' %}
 
   <div class="form-wrapper">
     <form id="startForm" class="form-box">
+
       <label>Temperatură optimă zi:</label>
-      <input type="text" step="0.1" name="optimal_temp_day">
+      <div id="slider-temp-day"></div>
+      <input type="hidden" name="optimal_temp_day" id="temp_day">
+      <small><i>Interval selectat: <span id="temp_day_value">–</span></i></small>
 
       <label>Umiditate optimă zi:</label>
-      <input type="text" step="0.1" name="optimal_humidity_day">
+      <div id="slider-humidity-day"></div>
+      <input type="hidden" name="optimal_humidity_day" id="humidity_day">
+      <small><i>Interval selectat: <span id="humidity_day_value">–</span></i></small>
 
       <label>Temperatură optimă noapte:</label>
-      <input type="text" step="0.1" name="optimal_temp_night">
+      <div id="slider-temp-night"></div>
+      <input type="hidden" name="optimal_temp_night" id="temp_night">
+      <small><i>Interval selectat: <span id="temp_night_value">–</span></i></small>
 
       <label>Umiditate optimă noapte:</label>
-      <input type="text" step="0.1" name="optimal_humidity_night">
+      <div id="slider-humidity-night"></div>
+      <input type="hidden" name="optimal_humidity_night" id="humidity_night">
+      <small><i>Interval selectat: <span id="humidity_night_value">–</span></i></small>
 
-      <button type="submit">Start recoltă</button>
+      <div>
+        <button type="submit"
+          style="padding: 6px 16px; font-size: 0.9em; border: none; border-radius: 6px; cursor: pointer;">
+          Start recoltă
+        </button>
+      </div>
 
-<p style="margin-top: 10px; font-size: 0.9em; color: #555;">
-  Folosiți valori întregi!<br>
-  Dacă nu completați câmpurile, vor fi folosite valorile implicite:
-  <br><strong>24°C / 65% zi</strong>, <strong>18°C / 75% noapte</strong>.
-</p>
+
+      <p style="margin-top: 10px; font-size: 0.9em; color: #555;">
+        Dacă nu completați câmpurile, vor fi folosite valorile implicite:
+        <br><strong>24-30°C / 65-70% zi</strong>, <strong>18-26°C / 70-80% noapte</strong>.
+      </p>
     </form>
   </div>
- <script src="{{ url_for('static', filename='js/plants.js') }}"></script>
 
+  <script src="https://cdn.jsdelivr.net/npm/nouislider@15.6.1/distribute/nouislider.min.js"></script>
+  <script src="{{ url_for('static', filename='js/plants.js') }}"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      if (document.getElementById('slider-temp-day')) {
+        if (!window.slidersInitialized) {
+          initSliders(null);
+          window.slidersInitialized = true;
+        }
+      }
+    });
+  </script>
 </body>
+
 </html>

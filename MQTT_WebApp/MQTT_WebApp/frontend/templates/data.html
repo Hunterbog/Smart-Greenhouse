@@ -36,24 +36,24 @@
 
         <div class="dashboard-container">
             <div class="card temperature-card">
-                <span class="card-title">Temperatura</span>
+                <span class="card-title"> 🌡️ Temperatură</span>
                 <span class="card-value" id="temperature">{{ '%.1f' % sensor_data.temperature }} °C</span>
                 <a href="/temperature-graph" class="btn-navigate" style="float: right;">Vezi grafic</a>
             </div>
 
             <div class="card humidity-card">
-                <span class="card-title">Umiditate</span>
+                <span class="card-title"> 💦 Umiditate</span>
                 <span class="card-value" id="humidity">{{ '%.1f' % sensor_data.humidity }}%</span>
                 <a href="/humidity-graph" class="btn-navigate" style="float: right;">Vezi grafic</a>
             </div>
 
             <div class="card lux-card">
-                <span class="card-title">Intensitate Soare</span>
-                <span class="card-value" id="lux">{{ sensor_data.light }}</span>
+                <span class="card-title"> ☀️ Intensitate Soare</span>
+                <span class="card-value" id="lux">{{ sensor_data.light }}%</span>
             </div>
 
             <div class="card water-level-card">
-                <span class="card-title">Rezervor Umidificator</span>
+                <span class="card-title"> Rezervor umidificator</span>
                 <div class="gauge-wrapper">
                     <div class="gauge">
                         <div class="gauge-fill" id="waterLevelFill"></div>
@@ -63,25 +63,25 @@
             </div>
 
             <div class="card water-volume-card">
-                <span class="card-title">Volum apa Bazin</span>
+                <span class="card-title">Volum apă bazin</span>
                 <span class="card-value" id="waterVolume">{{'%.1f' % sensor_data.waterVolume }} L</span>
             </div>
 
             <div class="card soil-card">
-                <span class="card-title">&nbsp;Umiditate sol Parcela 1 🌱&nbsp;</span>
-                <span class="card-value" id="soil1">{{ sensor_data.soil1 }}</span>
+                <span class="card-title">Umiditate sol parcelă 1 🌱&nbsp;</span>
+                <span class="card-value" id="soil1">{{ sensor_data.soil1 }}%</span>
                 <a href="/soil-graph" class="btn-navigate1" style="float: right;">Vezi grafic</a>
             </div>
 
             <div class="card soil-card">
-                <span class="card-title">Umiditate sol Parcela 2 🌱</span>
-                <span class="card-value" id="soil2">{{ sensor_data.soil2 }} </span>
+                <span class="card-title">Umiditate sol parcelă 2 🌱</span>
+                <span class="card-value" id="soil2">{{ sensor_data.soil2 }}%</span>
                 <a href="/soil-graph" class="btn-navigate1" style="float: right;">Vezi grafic</a>
             </div>
 
             <div class="card soil-card">
-                <span class="card-title">Umiditate sol Parcela 3 🌱</span>
-                <span class="card-value" id="soil3">{{ sensor_data.soil3 }} </span>
+                <span class="card-title">Umiditate sol parcelă 3 🌱</span>
+                <span class="card-value" id="soil3">{{ sensor_data.soil3 }}%</span>
                 <a href="/soil-graph" class="btn-navigate1" style="float: right;">Vezi grafic</a>
             </div>
 

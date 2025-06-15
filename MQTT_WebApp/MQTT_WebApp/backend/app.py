@@ -26,18 +26,14 @@ senzori = db.senzori
 app.register_blueprint(plants_history_bp, )
 app.register_blueprint(graphs_bp)
 
-
-
-
 def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
         timestamp = datetime.now()
-        print(f"MQTT MESSAGE RECEIVED")
+       
         active_crop = db.plants_history.find_one({"active": True})
         if msg.topic == "myhome/esp8266/data":
             formatted_timestamp = timestamp.strftime('%Y-%m-%d %H:%M:%S')
-
             sensor_doc = {
                 "timestamp": formatted_timestamp,
                 "active_crop_id": active_crop["_id"] if active_crop else None,
@@ -147,7 +143,7 @@ def actuator(name):
             if not data:
                 return jsonify({"error": "No data provided"}), 400
 
-            topic = f"myhome/esp8266/actuators/{name}"
+            topic = f"myhome/esp8266/actuator/{name}"
 
             if "status" in data:
                 save_status(name, data["status"])
@@ -165,6 +161,22 @@ def actuator(name):
             return jsonify({"error": "MQTT error"}), 500
         except Exception as e:
             return jsonify({"error": "Server error"}), 500
+        
+@app.route('/supraveghere')
+def supraveghere():
+    return render_template('supraveghere.html')
+
+@app.route('/api/latest-waterlevel')
+def latest_water_level():
+    try:
+        sensor_data = db.senzori.find_one(sort=[("_id", -1)])
+        if not sensor_data:
+            return jsonify({"error": "No sensor data found"}), 404
+        return jsonify({"waterLevel": sensor_data.get("waterLevel", 0)}), 200
+    except Exception as e:
+        print("Exception:", str(e))  
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

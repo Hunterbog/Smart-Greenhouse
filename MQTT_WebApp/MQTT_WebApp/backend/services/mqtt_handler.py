@@ -15,9 +15,8 @@ def create_mqtt_client():
     client.tls_set()
     try:
         client.connect(MQTT_BROKER, MQTT_PORT)
-        print(f"Connected to MQTT broker at {MQTT_BROKER}:{MQTT_PORT}")
     except Exception as e:
-        print(f"Failed to connect to MQTT broker: {e}")
+        print(f"Eroare la conexiune: {e}")
 
     return client
 mqtt_client = create_mqtt_client()

@@ -33,12 +33,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.getElementById('temperature').textContent = `${sensor.temperature.toFixed(1)} °C`;
             document.getElementById('humidity').textContent = `${sensor.humidity.toFixed(1)}%`;
-            document.getElementById('lux').textContent = `${sensor.light}`;
+            document.getElementById('lux').textContent = `${sensor.light}%`;
             document.getElementById('waterLevel').textContent = `${sensor.waterLevel}%`;
             document.getElementById('waterVolume').textContent = `${sensor.waterVolume.toFixed(1)} L`;
-            document.getElementById('soil1').textContent = `${sensor.soil1} `;
-            document.getElementById('soil2').textContent = `${sensor.soil2}`;
-            document.getElementById('soil3').textContent = `${sensor.soil3}`;
+            document.getElementById('soil1').textContent = `${sensor.soil1}%`;
+            document.getElementById('soil2').textContent = `${sensor.soil2}%`;
+            document.getElementById('soil3').textContent = `${sensor.soil3}%`;
             document.getElementById('timestamp').textContent = `${sensor.timestamp}`;
 
             const fill = document.getElementById('waterLevelFill');

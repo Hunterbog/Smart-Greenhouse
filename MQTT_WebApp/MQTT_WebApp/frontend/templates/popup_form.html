@@ -1,3 +1,12 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <title>Trimite Comenzi</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.6.1/dist/nouislider.min.css">
+</head>
+<body>
+
 <div id="overlay" class="overlay" onclick="closeCommandPopup()"></div>
 
 <div class="form-popup" id="commandForm">
@@ -5,35 +14,33 @@
     <h3>Trimite Comenzi</h3>
 
     <div class="form-row">
-      <label for="temp_day">
-        Temp zi:
+      <label>Temperatură optimă zi:
         <span class="info-icon" title="Temperatura ideală ziua. Folosiți un interval recomandat (°C).">ℹ️</span>
       </label>
-      <small><i>Valoare actuală: {{ active_crop.optimal_temp_day }}°C</i></small>
-      <input type="text" id="temp_day" required>
+      <div id="slider-temp-day"></div>
+      <input type="hidden" id="temp_day">
+      <small><span id="temp_day_value">–</span></i></small>
 
-      <label for="humidity_day">
-        Umiditate zi:
-        <span class="info-icon" title="Nivelul optim de umiditate în timpul zilei. Folosiți un interval recomandat (%).">ℹ️</span>
+      <label>Umiditate optimă zi:
+        <span class="info-icon" title="Umiditatea dorită în timpul zilei. Folosiți un interval recomandat">ℹ️</span>
       </label>
-      <small><i>Valoare actuală: {{ active_crop.optimal_humidity_day }}%</i></small>
-      <input type="text" id="humidity_day" required>
-    </div>
+      <div id="slider-humidity-day"></div>
+      <input type="hidden" id="humidity_day">
+      <small><span id="humidity_day_value">–</span></i></small>
 
-    <div class="form-row">
-      <label for="temp_night">
-        Temp noapte:
-        <span class="info-icon" title="Temperatura recomandată pe timpul nopții. Folosiți un interval recomandat (°C).">ℹ️</span>
+      <label>Temperatură optimă noapte:
+        <span class="info-icon" title="Temperatura recomandată pe timpul nopții. Folosiți un interval recomandat (°C)">ℹ️</span>
       </label>
-      <small><i>Valoare actuală: {{ active_crop.optimal_temp_night }}°C</i></small>
-      <input type="text" id="temp_night" required>
+      <div id="slider-temp-night"></div>
+      <input type="hidden" id="temp_night">
+      <small><span id="temp_night_value">–</span></i></small>
 
-      <label for="humidity_night">
-        Umiditate noapte:
-        <span class="info-icon" title="Umiditatea dorită în timpul nopții. Folosiți un interval recomandat(%).">ℹ️</span>
+      <label>Umiditate optimă noapte:
+        <span class="info-icon" title="Umiditatea dorită în timpul nopții. Folosiți un interval recomandat">ℹ️</span>
       </label>
-      <small><i>Valoare actuală: {{ active_crop.optimal_humidity_night }}%</i></small>
-      <input type="text" id="humidity_night" required>
+      <div id="slider-humidity-night"></div>
+      <input type="hidden" id="humidity_night">
+      <small><span id="humidity_night_value">–</span></i></small>
     </div>
 
     <div class="form-buttons"> 
@@ -42,3 +49,8 @@
     </div>
   </form>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/nouislider@15.6.1/dist/nouislider.min.js"></script>
+
+</body>
+</html>

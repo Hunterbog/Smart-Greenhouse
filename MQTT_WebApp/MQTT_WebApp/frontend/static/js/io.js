@@ -1,5 +1,4 @@
-
-async function plantCrop(plant_type_id) {
+﻿async function plantCrop(plant_type_id) {
   const response = await fetch('/plants_history', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -35,7 +34,7 @@ document.getElementById('startForm')?.addEventListener('submit', async function 
   const humDay = form.optimal_humidity_day.value;
   const tempNight = form.optimal_temp_night.value;
   const humNight = form.optimal_humidity_night.value;
-  
+
   const data = {
     optimal_temp_day: tempDay,
     optimal_humidity_day: humDay,
@@ -74,6 +73,7 @@ function openCommandPopup() {
     })
     .catch(err => console.error('Eroare la preluare:', err));
 }
+
 
 
 function closeCommandPopup() {
@@ -222,4 +222,13 @@ function setSlidersFromServer(data) {
   });
 }
 
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('slider-temp-day')) {
+    if (!window.slidersInitialized) {
+      initSliders(null);
+      window.slidersInitialized = true;
+    }
+  }
+});
 
