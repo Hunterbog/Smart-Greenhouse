@@ -6,6 +6,8 @@
 #include <BH1750.h>
 
 #define setbit(data, bit) ((data) |= (1 << (bit)))
+#define clrbit(data, bit) ((data) &= ~(1 << (bit)))
+#define testbit(data, bit) (((data) >> (bit)) & 0x01)
 #define SEND_FRAME(pkt) writeFrameWithRetry((uint8_t *)&(pkt), sizeof(pkt))
 
 /*************VARIABILE PT TIMP START**************/
@@ -47,6 +49,7 @@ unsigned long windowIsOpenedTime = 0;
 #define WaterLvlHumUpdate 100
 #define WaterLevelRead 200
 
+#define INVALID_TIMESTAMP 0xFFFFFFFFUL
 #define FRAME_START 0xAA
 #define STD_ON 1
 #define STD_OFF 0
@@ -100,6 +103,8 @@ const int poly = 0x1021;  // CRC-CCITT polynomial
 #define TX_BUFF_SIZE 28
 #define NOTALLOWED 0
 #define ALLOWED 0xF
+#define FANS_OFF 0
+#define FANS_ON 3
 
 #define SERVO_CLOSED 165  // Poziția închisă a servo-ului
 #define SERVO_OPENED 40   // Poziția deschisă a servo-ului
@@ -207,7 +212,7 @@ Humidity humidity = HUMIDITY_NORMAL;
 unsigned long IdleTimeFans = 0;
 unsigned long IdleTimeWindow = 0;
 unsigned long FansTime = 0;
-bool FansState = false;
+unsigned char FansState = FANS_OFF;
 Temperature temperature = NORMAL_TEMP;
 // Prag și timp pentru lumina naturală
 #define LIGHT_THRESHOLD 500                       // Valoarea minimă considerată "lumina suficientă"
@@ -217,7 +222,7 @@ Temperature temperature = NORMAL_TEMP;
 // Definire DHT
 DHT dht(DHTPIN, DHTTYPE);
 uint8_t FirstReadSensors = 0;
-#define ESSENTIAL_SENSORS_READY 0xF
+#define FIRST_SENSORS_READ 0xF
 // Declarație variabile pentru senzori și timp
 /*===========================SENZORI-INCEPUT===========================*/
 unsigned int soilMoisture1, soilMoisture2, soilMoisture3;
@@ -516,9 +521,6 @@ void controlGrowLight() {
 }
 
 // Funcția controlWaterSystem() gestionează udarea plantelor.
-// Modificările adăugate:
-//
-// - Se pornește pompa doar dacă senzorii indică condiții potrivite și există suficientă apă în rezervor
 void controlWaterSystem() {
   // Pornirea pompelor dacă sunt îndeplinite toate condițiile + idle time
   if (dhtHumidity <= HumidityUpperLimit && lightLevel < OPTIMAL_LIGHT_LEVEL && waterVolume >= VOLUM_SUFICIENT_APA) {
@@ -600,8 +602,8 @@ void applicationLogic(ControlMode mode) {
       }
     } else {
       if (!requireWindow || ((allowWindow & 0xF) == NOTALLOWED)) {
-        requireWindow = false;  //Amprenta de timp pentru inchidere geam, ca sa imi da seama cand sunt precipitatii si inchid geamul
-        windowIsOpenedTime = (1 << 32) - 1;
+        requireWindow = false;  //Amprenta de timp pentru inchidere geam, ca sa imi dau seama cand sunt precipitatii si inchid geamul
+        windowIsOpenedTime = INVALID_TIMESTAMP;
         IdleTimeWindow = millis();
         if (servoPos < SERVO_CLOSED) {
           servoPos++;
@@ -613,7 +615,7 @@ void applicationLogic(ControlMode mode) {
 
   switch (mode) {
     case AUTOMATED:
-      if (FirstReadSensors == ESSENTIAL_SENSORS_READY) {
+      if (FirstReadSensors == FIRST_SENSORS_READ) {
         allowHumidifierToWork();
         controlWeatherSystem();
         controlGrowLight();
@@ -626,56 +628,87 @@ void applicationLogic(ControlMode mode) {
         case POMPA1:
           Serial.println("POMPA1");
           digitalWrite(pumpPin1, actuator.value);
+          lastWaterTime1 = (actuator.value == LOW ? millis() : INVALID_TIMESTAMP);
+          pompaTime1 = (actuator.value == HIGH ? millis() : INVALID_TIMESTAMP);
           break;
 
         case POMPA2:
           Serial.println("POMPA2");
           digitalWrite(pumpPin2, actuator.value);
+          lastWaterTime2 = (actuator.value == LOW ? millis() : INVALID_TIMESTAMP);
+          pompaTime2 = (actuator.value == HIGH ? millis() : INVALID_TIMESTAMP);
           break;
 
         case POMPA3:
           Serial.println("POMPA3");
           digitalWrite(pumpPin3, actuator.value);
+          lastWaterTime3 = (actuator.value == LOW ? millis() : INVALID_TIMESTAMP);
+          pompaTime3 = (actuator.value == HIGH ? millis() : INVALID_TIMESTAMP);
           break;
 
         case VENTILATOR1:
           Serial.println("VENTILATOR1");
-          analogWrite(ventilatorLeftPin, actuator.value == 0 ? 0 : map(actuator.value, 1, 100, 50, 255));
+          analogWrite(ventilatorLeftPin, actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 50, 255));
+          if (actuator.value == LOW) {
+            clrbit(FansState, 0);
+            if (FansState == FANS_OFF) FansTime = INVALID_TIMESTAMP;
+          } else if (testbit(FansState, 0) == 0) {
+            setbit(FansState, 0);
+            if (testbit(FansState, 1) == 0) FansTime = millis();
+          }
+          IdleTimeFans = (FansState == FANS_OFF ? millis() : INVALID_TIMESTAMP);
+          Serial.println(IdleTimeFans);
+          Serial.println(FansTime);
           break;
 
         case VENTILATOR2:
           Serial.println("VENTILATOR2");
-          analogWrite(ventilatorRightPin, actuator.value == 0 ? 0 : map(actuator.value, 1, 100, 50, 255));
+          analogWrite(ventilatorRightPin, actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 50, 255));
+          if (actuator.value == LOW) {
+            clrbit(FansState, 1);
+            if (FansState == FANS_OFF) FansTime = INVALID_TIMESTAMP;
+          } else if (testbit(FansState, 1) == 0) {
+            setbit(FansState, 1);
+            if (testbit(FansState, 0) == 0) FansTime = millis();
+          }
+          IdleTimeFans = (FansState == FANS_OFF ? millis() : INVALID_TIMESTAMP);
+           Serial.println(IdleTimeFans);
+          Serial.println(FansTime);
           break;
 
         case INCALZIRE1:
           Serial.println("INCALZIRE1");
-          digitalWrite(heatingPin_S1a, (actuator.value == STD_OFF) ? RELAY_OFF : RELAY_ON);
-          analogWrite(heatingPin_S1b, actuator.value == 0 ? 0 : map(actuator.value, 1, 100, 30, 50));
+          digitalWrite(heatingPin_S1a, (actuator.value == LOW) ? RELAY_OFF : RELAY_ON);
+          analogWrite(heatingPin_S1b, actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 30, 50));
           break;
 
         case INCALZIRE2:
           Serial.println("INCALZIRE2");
-          digitalWrite(heatingPin_S2a, (actuator.value == STD_OFF) ? RELAY_OFF : RELAY_ON);
-          analogWrite(heatingPin_S2b, actuator.value == 0 ? 0 : map(actuator.value, 1, 100, 30, 50));
+          digitalWrite(heatingPin_S2a, (actuator.value == LOW) ? RELAY_OFF : RELAY_ON);
+          analogWrite(heatingPin_S2b, actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 30, 50));
           break;
 
         case UMIDIFICATOR:
-          Serial.println("→ Activare: UMIDIFICATOR");
-          digitalWrite(humidifierPin, actuator.value);
+          Serial.println("Activare: UMIDIFICATOR");
+          digitalWrite(humidifierPin, (actuator.value == LOW) ? RELAY_OFF : RELAY_ON);
           break;
 
         case GEAM:
           Serial.println("GEAM");
           requireWindow = actuator.value;
-          allowWindow = (actuator.value == 1 ? ALLOWED : NOTALLOWED);
+
+          if (actuator.value == HIGH) allowWindow = true;
+          windowIsOpenedTime = (actuator.value == HIGH ? millis() : INVALID_TIMESTAMP);
+          IdleTimeWindow = (actuator.value == LOW ? millis() : INVALID_TIMESTAMP);
           Serial.println(requireWindow);
           Serial.println(allowWindow);
           break;
 
         case LUMINA:
-          Serial.println("→ Activare: LUMINA");
-          digitalWrite(growLightPin, actuator.value);
+          Serial.println("Activare: LUMINA");
+          digitalWrite(growLightPin, (actuator.value == HIGH) ? RELAY_ON : RELAY_OFF);
+          artificialLightStartTime = (actuator.value == HIGH ? millis() : INVALID_TIMESTAMP);
+          growLightState = actuator.value;
           break;
 
         case POMPA4:
@@ -692,8 +725,8 @@ void applicationLogic(ControlMode mode) {
   }
 }
 
-template <typename T>
-int partition(T* arr, int low, int high) {
+template<typename T>
+int partition(T *arr, int low, int high) {
   T pivot = arr[high];
   int i = low - 1;
 
@@ -716,8 +749,8 @@ int partition(T* arr, int low, int high) {
   return i;
 }
 
-template <typename T>
-void quickSort(T* arr, int low, int high) {
+template<typename T>
+void quickSort(T *arr, int low, int high) {
   if (low < high) {
     int pi = partition(arr, low, high);
     quickSort(arr, low, pi - 1);
@@ -725,9 +758,9 @@ void quickSort(T* arr, int low, int high) {
   }
 }
 
-template <typename T>
-T getMedian(T* arr, int size) {
-  T sorted[size]; 
+template<typename T>
+T getMedian(T *arr, int size) {
+  T sorted[size];
   memcpy(sorted, arr, sizeof(sorted));
   quickSort(sorted, 0, size - 1);
   return sorted[size / 2];
@@ -804,7 +837,7 @@ void controlWeatherSystem() {
         if (requireWindow) {
           IdleTimeWindow = millis();
           requireWindow = false;  //Amprenta de timp pentru inchidere geam
-          windowIsOpenedTime = (1 << 32) - 1;
+          windowIsOpenedTime = INVALID_TIMESTAMP;
         }
 
         if (allowHumToWork) { digitalWrite(humidifierPin, RELAY_ON); }
@@ -813,7 +846,7 @@ void controlWeatherSystem() {
         ventilatorLastValue = LOW_SPEED;
         if (!FansState) {
           FansTime = millis();  //Amprenta de timp pentru deschidere ventilatoare
-          FansState = true;
+          FansState = FANS_ON;
         }
         break;
       } else if (humidity == HUMIDITY_HIGH) {  //Nivelul de umidate este MARE
@@ -826,7 +859,7 @@ void controlWeatherSystem() {
 
         if (!FansState) {
           FansTime = millis();  //Amprenta de timp pentru ventilatoare cand le deschid
-          FansState = true;
+          FansState = FANS_ON;
         }
         analogWrite(ventilatorLeftPin, HIGH_SPEED);
         analogWrite(ventilatorRightPin, HIGH_SPEED);
@@ -842,11 +875,11 @@ void controlWeatherSystem() {
 
         if (millis() - windowIsOpenedTime > TIME_10_MINUTES && requireWindow == true) {  // las geamul deschis timp de 10 minute in caz ca nivelul de umiditate este in parametrii normali
           requireWindow = false;                                                         //Amprenta de timp pentru inchidere geam
-          windowIsOpenedTime = (1 << 32) - 1;
+          windowIsOpenedTime = INVALID_TIMESTAMP;
           IdleTimeWindow = millis();
         } else if (millis() - IdleTimeWindow >= TIME_3_HOUR && requireWindow == false) {
           windowIsOpenedTime = millis();
-          IdleTimeWindow = (1 << 32) - 1;
+          IdleTimeWindow = INVALID_TIMESTAMP;
           requireWindow = true;
         }
         //Ventilatoarele le las mereu pornite
@@ -855,7 +888,7 @@ void controlWeatherSystem() {
         ventilatorLastValue = MEDIUM_SPEED;
         if (!FansState) {
           FansTime = millis();
-          FansState = true;
+          FansState = FANS_ON;
         }  //Amprenta de timp pentru ventilatoare
       }
       break;
@@ -869,21 +902,21 @@ void controlWeatherSystem() {
         if (humidity == HUMIDITY_LOW) {  //Nivelul de umidate este MIC
           if (requireWindow) {
             requireWindow = false;  //Amprenta de timp pentru inchidere geam
-            windowIsOpenedTime = (1 << 32) - 1;
+            windowIsOpenedTime = INVALID_TIMESTAMP;
             IdleTimeWindow = millis();
           }
           if (allowHumToWork) { digitalWrite(humidifierPin, RELAY_ON); }
           if (millis() - FansTime > TIME_10_MINUTES && FansState) {
-            FansState = false;
+            FansState = FANS_OFF;
             analogWrite(ventilatorLeftPin, 0);
             analogWrite(ventilatorRightPin, 0);
             ventilatorLastValue = 0;
-            FansTime = (1 << 32) - 1;
+            FansTime = INVALID_TIMESTAMP;
             IdleTimeFans = millis();
           }
           if (millis() - IdleTimeFans >= TIME_1_HOUR && !FansState) {
-            FansState = true;
-            IdleTimeFans = (1 << 32) - 1;
+            FansState = FANS_ON;
+            IdleTimeFans = INVALID_TIMESTAMP;
             FansTime = millis();
             analogWrite(ventilatorLeftPin, LOW_SPEED);
             analogWrite(ventilatorRightPin, LOW_SPEED);
@@ -896,7 +929,7 @@ void controlWeatherSystem() {
           }
           if (!FansState) {
             FansTime = millis();  //Amprenta de timp pentru ventilatoare cand le deschid
-            FansState = true;
+            FansState = FANS_ON;
           }
           digitalWrite(humidifierPin, RELAY_OFF);
           analogWrite(ventilatorLeftPin, MEDIUM_SPEED);
@@ -911,8 +944,8 @@ void controlWeatherSystem() {
           }
           //Mai jos verific daca inchid geamul si ventilatorul
           if (millis() - FansTime > TIME_10_MINUTES && FansState) {
-            FansState = false;
-            FansTime = (1 << 32) - 1;
+            FansState = FANS_OFF;
+            FansTime = INVALID_TIMESTAMP;
             analogWrite(ventilatorLeftPin, 0);
             analogWrite(ventilatorRightPin, 0);
             ventilatorLastValue = 0;
@@ -920,19 +953,19 @@ void controlWeatherSystem() {
           }
           if (millis() - windowIsOpenedTime > TIME_10_MINUTES && requireWindow) {
             requireWindow = false;
-            windowIsOpenedTime = (1 << 32) - 1;
+            windowIsOpenedTime = INVALID_TIMESTAMP;
             IdleTimeWindow = millis();  //Amprenta de timp pentu geam cand e inchis
           }
 
           //Mai jos verific daca deschid geamul si ventilatorul
           if (millis() - IdleTimeWindow >= TIME_1_HOUR && !requireWindow) {
             requireWindow = true;
-            IdleTimeWindow = (1 << 32) - 1;
+            IdleTimeWindow = INVALID_TIMESTAMP;
             windowIsOpenedTime = millis();  // amprenta de tmp pt geam cand e deschis
           }
           if (millis() - IdleTimeFans >= TIME_1_HOUR && !FansState) {
-            FansState = true;
-            IdleTimeFans = (1 << 32) - 1;
+            FansState = FANS_ON;
+            IdleTimeFans = INVALID_TIMESTAMP;
             FansTime = millis();  // amprenta de tmp pt ventilatoare cand sunt deschise
             analogWrite(ventilatorLeftPin, MEDIUM_SPEED);
             analogWrite(ventilatorRightPin, MEDIUM_SPEED);
@@ -950,7 +983,7 @@ void controlWeatherSystem() {
         // Nu se folosește geamul în temperatură joasă
         if (requireWindow) {
           requireWindow = false;  //Amprenta de timp pentru inchidere geam
-          windowIsOpenedTime = (1 << 32) - 1;
+          windowIsOpenedTime = INVALID_TIMESTAMP;
           IdleTimeWindow = millis();
         }
 
@@ -962,19 +995,19 @@ void controlWeatherSystem() {
 
         // Oprire ventilatoare după durata ON
         if (millis() - FansTime > onTime && FansState) {
-          FansState = false;
+          FansState = FANS_OFF;
           analogWrite(ventilatorLeftPin, 0);
           analogWrite(ventilatorRightPin, 0);
           ventilatorLastValue = 0;
           IdleTimeFans = millis();
-          FansTime = (1 << 32) - 1;
+          FansTime = INVALID_TIMESTAMP;
         }
 
         // Pornire ventilatoare după pauză de 3 ore
         if (millis() - IdleTimeFans >= TIME_3_HOUR && !FansState) {
-          FansState = true;
+          FansState = FANS_ON;
           FansTime = millis();
-          IdleTimeFans = (1 << 32) - 1;
+          IdleTimeFans = INVALID_TIMESTAMP;
           analogWrite(ventilatorLeftPin, LOW_SPEED);
           analogWrite(ventilatorRightPin, LOW_SPEED);
           ventilatorLastValue = LOW_SPEED;
@@ -1339,11 +1372,11 @@ void readAllSensors() {
 }
 
 void updateCommunicationBuffers() {
-  if (millis() - prevUpdateTxBufferActuators >= UpdateTxBufferActuators && (FirstReadSensors == ESSENTIAL_SENSORS_READY) && mode == AUTOMATED) {
+  if (millis() - prevUpdateTxBufferActuators >= UpdateTxBufferActuators && (FirstReadSensors == FIRST_SENSORS_READ) && mode == AUTOMATED) {
     prevUpdateTxBufferActuators = millis();
     updateSerialBufferActuators();
   }
-  if (millis() - prevUpdateTxBufferSensors >= UpdateTxBufferSensors && (FirstReadSensors == ESSENTIAL_SENSORS_READY)) {
+  if (millis() - prevUpdateTxBufferSensors >= UpdateTxBufferSensors && (FirstReadSensors == FIRST_SENSORS_READ)) {
     prevUpdateTxBufferSensors = millis();
     updateSerialBufferSensors();
   }
