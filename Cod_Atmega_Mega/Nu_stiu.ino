@@ -680,7 +680,7 @@ void applicationLogic(ControlMode mode) {
 
         case POMPA4:
           Serial.println("POMPA4");
-          digitalWrite(growLightPin, actuator.value);
+          digitalWrite(pumpPin4, actuator.value);
           break;
 
         default:
