@@ -156,11 +156,11 @@ const int pumpPin4 = 39;
 const int heatingPin_S1b = 3;  //iesire PWM
 const int heatingPin_S1a = 27;
 const int heatingPin_S2b = 4;  //iesire PWM
-const int heatingPin_S2a = 26;
+const int heatingPin_S2a = 25;
 const int rainPin = 47;
-#define humidifierPin 21       // Pinul pentru umidificator (și sistemul de mist)
+#define humidifierPin 22       // Pinul pentru umidificator (și sistemul de mist)
 #define ventilatorLeftPin 10   // Pinul pentru ventilatoare
-#define growLightPin 22        // Pinul pentru lumina de creștere
+#define growLightPin 21        // Pinul pentru lumina de creștere
 #define ventilatorRightPin 11  // Pinul pentru ventilatoare
 #define SERVO_PIN 2            // Pinul pentru servo
 
