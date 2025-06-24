@@ -257,6 +257,7 @@ volatile int curentPos = SERVO_CLOSED;
 unsigned long prevServoTime = 0;
 bool isDeatached = false;
 volatile uint8_t allowWindow = 0xF;
+unsigned long ClosedTimeRain = 0;
 /*===========================VARIABILE-SFARSIT===========================*/
 
 // Variabile pentru citirea senzorilor la intervale specifice
@@ -303,6 +304,7 @@ void setup() {
   Serial.begin(115200);
   Serial3.begin(115200);
   dht.begin();
+
   // Inițializări pentru lumina de creștere (artificială)
   growLightState = false;
   // Inițializare servo (geam de aerisire)
@@ -322,9 +324,11 @@ void allowWindowToWork() {
 
 void loop() {
   while (Serial3.available() > 0) {
+   // Serial.println("Eu");
     uint8_t octet = Serial3.read();
     uartByteReceived(octet);
   }
+
   switch (command) {
     case IDLE:
       break;
@@ -595,21 +599,19 @@ void applicationLogic(ControlMode mode) {
   if (millis() - lastMoveTime >= 20) {  // la fiecare 20ms
     lastMoveTime = millis();
     // Logica ta pentru mișcarea servo-ului
-    if (requireWindow && (allowWindow & 0xF)) {
+    if (requireWindow && (allowWindow & 0xF) == ALLOWED) {
       if (servoPos > SERVO_OPENED) {
         servoPos--;
         windowServo.write(servoPos);
       }
     } else {
-      if (!requireWindow || ((allowWindow & 0xF) == NOTALLOWED)) {
-        requireWindow = false;  //Amprenta de timp pentru inchidere geam, ca sa imi dau seama cand sunt precipitatii si inchid geamul
-        windowIsOpenedTime = INVALID_TIMESTAMP;
-        IdleTimeWindow = millis();
+        if (requireWindow) {
+          ClosedTimeRain += 20;
+        }
         if (servoPos < SERVO_CLOSED) {
           servoPos++;
           windowServo.write(servoPos);
         }
-      }
     }
   }
 
@@ -672,7 +674,7 @@ void applicationLogic(ControlMode mode) {
             if (testbit(FansState, 0) == 0) FansTime = millis();
           }
           IdleTimeFans = (FansState == FANS_OFF ? millis() : INVALID_TIMESTAMP);
-           Serial.println(IdleTimeFans);
+          Serial.println(IdleTimeFans);
           Serial.println(FansTime);
           break;
 
@@ -838,6 +840,7 @@ void controlWeatherSystem() {
           IdleTimeWindow = millis();
           requireWindow = false;  //Amprenta de timp pentru inchidere geam
           windowIsOpenedTime = INVALID_TIMESTAMP;
+          ClosedTimeRain = 0;
         }
 
         if (allowHumToWork) { digitalWrite(humidifierPin, RELAY_ON); }
@@ -873,8 +876,9 @@ void controlWeatherSystem() {
           digitalWrite(humidifierPin, RELAY_OFF);
         }
 
-        if (millis() - windowIsOpenedTime > TIME_10_MINUTES && requireWindow == true) {  // las geamul deschis timp de 10 minute in caz ca nivelul de umiditate este in parametrii normali
-          requireWindow = false;                                                         //Amprenta de timp pentru inchidere geam
+        if (millis() - windowIsOpenedTime > (TIME_10_MINUTES + ClosedTimeRain) && requireWindow == true) {  // las geamul deschis timp de 10 minute in caz ca nivelul de umiditate este in parametrii normali
+          ClosedTimeRain = 0;
+          requireWindow = false;                                                                            //Amprenta de timp pentru inchidere geam
           windowIsOpenedTime = INVALID_TIMESTAMP;
           IdleTimeWindow = millis();
         } else if (millis() - IdleTimeWindow >= TIME_3_HOUR && requireWindow == false) {
@@ -903,6 +907,7 @@ void controlWeatherSystem() {
           if (requireWindow) {
             requireWindow = false;  //Amprenta de timp pentru inchidere geam
             windowIsOpenedTime = INVALID_TIMESTAMP;
+            ClosedTimeRain = 0;
             IdleTimeWindow = millis();
           }
           if (allowHumToWork) { digitalWrite(humidifierPin, RELAY_ON); }
@@ -951,7 +956,8 @@ void controlWeatherSystem() {
             ventilatorLastValue = 0;
             IdleTimeFans = millis();  // Amprenta de timp ventilator cand e stins
           }
-          if (millis() - windowIsOpenedTime > TIME_10_MINUTES && requireWindow) {
+          if (millis() - windowIsOpenedTime > (TIME_10_MINUTES + ClosedTimeRain) && requireWindow) {
+            ClosedTimeRain = 0;
             requireWindow = false;
             windowIsOpenedTime = INVALID_TIMESTAMP;
             IdleTimeWindow = millis();  //Amprenta de timp pentu geam cand e inchis
@@ -984,6 +990,7 @@ void controlWeatherSystem() {
         if (requireWindow) {
           requireWindow = false;  //Amprenta de timp pentru inchidere geam
           windowIsOpenedTime = INVALID_TIMESTAMP;
+          ClosedTimeRain = 0;
           IdleTimeWindow = millis();
         }
 
@@ -1107,11 +1114,13 @@ void uartByteReceived(uint8_t octet) {
   switch (rxState) {
     case WAIT_START:
       if (octet == FRAME_START) {
+        Serial.println(octet);
         rxBuf[0] = octet;
         rxState = WAIT_LEN;
       }
       break;
     case WAIT_LEN:
+     Serial.println(octet);
       rxBuf[1] = octet;
       packetLength = octet;
       if (packetLength > RX_BUF_MAX) {
@@ -1122,6 +1131,7 @@ void uartByteReceived(uint8_t octet) {
       rxState = WAIT_PAYLOAD;
       break;
     case WAIT_PAYLOAD:
+      Serial.println(octet);
       rxBuf[2 + index++] = octet;
       if (index == packetLength - 2) {
         if (computeCRC(rxBuf, packetLength) == VALID) {
