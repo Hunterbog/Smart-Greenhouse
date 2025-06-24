@@ -19,6 +19,7 @@
 #define FRAME_START 0xAA
 #define ACTUATOR_FRAME_LEN 8
 #define HARVEST_FRAME_LEN 20
+
 #define BUFFER_SIZE 21
 
 #define CONTROL_SERA 1
@@ -161,8 +162,8 @@ void connectMQTT() {
 #if (DEBUG == STD_ON)
       Serial.print(mqttClient.state());
       Serial.println("Incerc din nou");
-      delay(1000);
 #endif
+      delay(1000);
       cnt_MqttUnconnected++;
       if (cnt_MqttUnconnected == 10) {
         handleActuatorCommand("mod", "OFF");  // trimite comanda la ATmega pt a functiona automat
@@ -297,8 +298,6 @@ void handleActuatorCommand(const String& actuator, const String& message) {
   actuatorPacket.crc = (crc >> 8) | (crc << 8);
   SEND_FRAME(actuatorPacket);
   //Cod de debug
-
-
 #if (DEBUG == STD_ON)
   const uint8_t* raw = (const uint8_t*)&actuatorPacket;
   for (size_t i = 0; i < sizeof(actuatorPacket); ++i) {
@@ -319,6 +318,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   for (unsigned int i = 0; i < length; i++) {
     message += (char)payload[i];
   }
+
   if (topicStr.startsWith("myhome/greenhouse/status")) {
     handleGreenhouseStatus(message);
   } else if (topicStr.startsWith("myhome/esp8266/actuator/")) {
@@ -346,7 +346,6 @@ uint16_t computeCRC(uint8_t* data, size_t length) {
 void setup() {
   Serial.begin(115200);
   connectWiFi();
-
   // static X509List cert(mqttServerCert);
   // espClient.setTrustAnchors(&cert);
   // espClient.setBufferSizes(2048, 2048);
@@ -358,7 +357,6 @@ void setup() {
 bool writeFrameWithRetry(const uint8_t* buf, size_t len) {
   for (uint8_t attempt = 0; attempt < MAX_RETRY; ++attempt) {
     Serial.write(buf, len);
-
     unsigned long t = millis();
     while (millis() - t < TIMEOUT_MS) {
       if (Serial.available()) {
