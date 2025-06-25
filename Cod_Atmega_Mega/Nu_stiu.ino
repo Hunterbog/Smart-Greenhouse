@@ -108,7 +108,7 @@ const int poly = 0x1021;  // CRC-CCITT polynomial
 
 #define SERVO_CLOSED 165  // Poziția închisă a servo-ului
 #define SERVO_OPENED 40   // Poziția deschisă a servo-ului
-#define SERVO_DELAY 20    // Întârzierea între incrementări (ms)
+#define SERVO_DELAY 15    // Întârzierea între incrementări (ms)
 #define LOW_LVL_HUM 80
 #define HIGH_LVL_HUM 500
 #define LOW_LIGHT_LEVEL 20
@@ -163,9 +163,9 @@ const int heatingPin_S1a = 27;
 const int heatingPin_S2b = 4;  //iesire PWM
 const int heatingPin_S2a = 25;
 const int rainPin = 47;
-#define humidifierPin 23       // Pinul pentru umidificator (și sistemul de mist)
+#define humidifierPin 22       // Pinul pentru umidificator (și sistemul de mist)
 #define ventilatorLeftPin 10   // Pinul pentru ventilatoare
-#define growLightPin 22        // Pinul pentru lumina de creștere
+#define growLightPin 23        // Pinul pentru lumina de creștere
 #define ventilatorRightPin 11  // Pinul pentru ventilatoare
 #define SERVO_PIN 2            // Pinul pentru servo
 
@@ -304,7 +304,6 @@ void setup() {
   Serial.begin(115200);
   Serial3.begin(115200);
   dht.begin();
-
   // Inițializări pentru lumina de creștere (artificială)
   growLightState = false;
   // Inițializare servo (geam de aerisire)
@@ -328,7 +327,6 @@ void loop() {
     uint8_t octet = Serial3.read();
     uartByteReceived(octet);
   }
-
   switch (command) {
     case IDLE:
       break;
@@ -596,7 +594,7 @@ void controlWaterSystem() {
 // - Controlul luminii artificiale
 void applicationLogic(ControlMode mode) {
   static unsigned long lastMoveTime = 0;
-  if (millis() - lastMoveTime >= SERVO_DELAY) {  // la fiecare 20ms
+  if (millis() - lastMoveTime >= 20) {  // la fiecare 20ms
     lastMoveTime = millis();
     // Logica ta pentru mișcarea servo-ului
     if (requireWindow && (allowWindow & 0xF) == ALLOWED) {
@@ -606,7 +604,7 @@ void applicationLogic(ControlMode mode) {
       }
     } else {
         if (requireWindow) {
-          ClosedTimeRain += SERVO_DELAY;
+          ClosedTimeRain += 20;
         }
         if (servoPos < SERVO_CLOSED) {
           servoPos++;
@@ -727,8 +725,8 @@ void applicationLogic(ControlMode mode) {
   }
 }
 
-template<typename T>
-int partition(T *arr, int low, int high) {
+template <typename T>
+int partition(T* arr, int low, int high) {
   T pivot = arr[high];
   int i = low - 1;
 
@@ -751,8 +749,8 @@ int partition(T *arr, int low, int high) {
   return i;
 }
 
-template<typename T>
-void quickSort(T *arr, int low, int high) {
+template <typename T>
+void quickSort(T* arr, int low, int high) {
   if (low < high) {
     int pi = partition(arr, low, high);
     quickSort(arr, low, pi - 1);
@@ -760,9 +758,9 @@ void quickSort(T *arr, int low, int high) {
   }
 }
 
-template<typename T>
-T getMedian(T *arr, int size) {
-  T sorted[size];
+template <typename T>
+T getMedian(T* arr, int size) {
+  T sorted[size]; 
   memcpy(sorted, arr, sizeof(sorted));
   quickSort(sorted, 0, size - 1);
   return sorted[size / 2];
@@ -1044,7 +1042,7 @@ void updateSerialBufferActuators() {
   currentState[5] = (ventilatorLastValue == 0) ? 0 : map(ventilatorLastValue, 1, 255, 1, 100);
 
   /* -------- digital mask -------- */
-  uint8_t dig = (digitalRead(pumpPin1) << 0) | (digitalRead(pumpPin2) << 1) | (digitalRead(pumpPin3) << 2) | (digitalRead(pumpPin4) << 3) | ((!digitalRead(humidifierPin)) << 4) | ((!digitalRead(growLightPin)) << 5) | ((!digitalRead(heatingPin_S1a)) << 6) | ((!digitalRead(heatingPin_S2a)) << 7);
+  uint8_t dig = (digitalRead(pumpPin1) << 0) | (digitalRead(pumpPin2) << 1) | (digitalRead(pumpPin3) << 2) | (digitalRead(pumpPin4) << 3) | (digitalRead(humidifierPin) << 4) | (digitalRead(growLightPin) << 5) | ((!digitalRead(heatingPin_S1a)) << 6) | ((!digitalRead(heatingPin_S1a)) << 7);
   currentState[8] = dig;
   currentState[9] = 0;
   bool changed = false;
@@ -1114,13 +1112,11 @@ void uartByteReceived(uint8_t octet) {
   switch (rxState) {
     case WAIT_START:
       if (octet == FRAME_START) {
-        Serial.println(octet);
         rxBuf[0] = octet;
         rxState = WAIT_LEN;
       }
       break;
     case WAIT_LEN:
-     Serial.println(octet);
       rxBuf[1] = octet;
       packetLength = octet;
       if (packetLength > RX_BUF_MAX) {
@@ -1131,7 +1127,6 @@ void uartByteReceived(uint8_t octet) {
       rxState = WAIT_PAYLOAD;
       break;
     case WAIT_PAYLOAD:
-      Serial.println(octet);
       rxBuf[2 + index++] = octet;
       if (index == packetLength - 2) {
         if (computeCRC(rxBuf, packetLength) == VALID) {
@@ -1227,7 +1222,7 @@ void ControlHeatingSystem(uint8_t state) {
 
 void allowHumidifierToWork() {
   // Turn OFF conditions
-  if (waterLvlHum >= HIGH_LVL_HUM || millis() - timeHumOn >= TIME_5_SECONDS) {
+  if (waterLvlHum >= HIGH_LVL_HUM || (allowHumToWork && (millis() - timeHumOn >= TIME_5_SECONDS))) {
     digitalWrite(pumpPin4, LOW);
     allowHumToWork = true;
     timeHumOn = 0;
