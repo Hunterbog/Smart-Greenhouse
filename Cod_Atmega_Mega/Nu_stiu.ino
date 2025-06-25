@@ -46,7 +46,7 @@ unsigned long windowIsOpenedTime = 0;
 #define UpdateTxBufferSensors 60000  // Interval trimitere date serial
 #define UpdateTxBufferActuators 2000
 #define RainSensorRead 1000
-#define WaterLvlHumUpdate 100
+#define WaterLvlHumUpdate 200
 #define WaterLevelRead 200
 
 #define INVALID_TIMESTAMP 0xFFFFFFFFUL
@@ -85,9 +85,9 @@ unsigned long windowIsOpenedTime = 0;
 #define LUMINA 11
 #define POMPA4 12
 
-#define TIME_1_HOUR (60UL * 60UL * 1000UL)  // 1 hour = 3,600,000 ms
+#define TIME_1_HOUR (60UL * 1000UL)  // 1 hour = 3,600,000 ms
 #define TIME_3_HOUR (3 * TIME_1_HOUR)
-#define TIME_10_MINUTES (10UL * 60UL * 1000UL)  // 10 minutes = 600,000 ms
+#define TIME_10_MINUTES (10UL * 1000UL)  // 10 minutes = 600,000 ms
 #define TIME_20_MINUTES (2 * TIME_10_MINUTES)
 #define TIME_10_SECONDS (10000UL)
 #define TIME_5_SECONDS (5000UL)
@@ -163,9 +163,9 @@ const int heatingPin_S1a = 27;
 const int heatingPin_S2b = 4;  //iesire PWM
 const int heatingPin_S2a = 25;
 const int rainPin = 47;
-#define humidifierPin 22       // Pinul pentru umidificator (și sistemul de mist)
+#define humidifierPin 23       // Pinul pentru umidificator (și sistemul de mist)
 #define ventilatorLeftPin 10   // Pinul pentru ventilatoare
-#define growLightPin 21        // Pinul pentru lumina de creștere
+#define growLightPin 22        // Pinul pentru lumina de creștere
 #define ventilatorRightPin 11  // Pinul pentru ventilatoare
 #define SERVO_PIN 2            // Pinul pentru servo
 
@@ -228,7 +228,7 @@ uint8_t FirstReadSensors = 0;
 unsigned int soilMoisture1, soilMoisture2, soilMoisture3;
 float dhtTemp, dhtHumidity;
 int lightLevel = 0;
-uint16_t waterLvlHum = 500;
+uint16_t waterLvlHum = 0;
 bool allowHumToWork = true;
 float waterVolume = 0.0;
 BH1750 lightMeter;
@@ -304,7 +304,6 @@ void setup() {
   Serial.begin(115200);
   Serial3.begin(115200);
   dht.begin();
-
   // Inițializări pentru lumina de creștere (artificială)
   growLightState = false;
   // Inițializare servo (geam de aerisire)
@@ -328,7 +327,6 @@ void loop() {
     uint8_t octet = Serial3.read();
     uartByteReceived(octet);
   }
-
   switch (command) {
     case IDLE:
       break;
@@ -727,8 +725,8 @@ void applicationLogic(ControlMode mode) {
   }
 }
 
-template<typename T>
-int partition(T *arr, int low, int high) {
+template <typename T>
+int partition(T* arr, int low, int high) {
   T pivot = arr[high];
   int i = low - 1;
 
@@ -751,8 +749,8 @@ int partition(T *arr, int low, int high) {
   return i;
 }
 
-template<typename T>
-void quickSort(T *arr, int low, int high) {
+template <typename T>
+void quickSort(T* arr, int low, int high) {
   if (low < high) {
     int pi = partition(arr, low, high);
     quickSort(arr, low, pi - 1);
@@ -760,9 +758,9 @@ void quickSort(T *arr, int low, int high) {
   }
 }
 
-template<typename T>
-T getMedian(T *arr, int size) {
-  T sorted[size];
+template <typename T>
+T getMedian(T* arr, int size) {
+  T sorted[size]; 
   memcpy(sorted, arr, sizeof(sorted));
   quickSort(sorted, 0, size - 1);
   return sorted[size / 2];
@@ -1114,13 +1112,11 @@ void uartByteReceived(uint8_t octet) {
   switch (rxState) {
     case WAIT_START:
       if (octet == FRAME_START) {
-        Serial.println(octet);
         rxBuf[0] = octet;
         rxState = WAIT_LEN;
       }
       break;
     case WAIT_LEN:
-     Serial.println(octet);
       rxBuf[1] = octet;
       packetLength = octet;
       if (packetLength > RX_BUF_MAX) {
@@ -1131,7 +1127,6 @@ void uartByteReceived(uint8_t octet) {
       rxState = WAIT_PAYLOAD;
       break;
     case WAIT_PAYLOAD:
-      Serial.println(octet);
       rxBuf[2 + index++] = octet;
       if (index == packetLength - 2) {
         if (computeCRC(rxBuf, packetLength) == VALID) {
@@ -1235,7 +1230,7 @@ void allowHumidifierToWork() {
   }
 
   // Turn ON condition
-  if (!allowHumToWork && waterVolume > VOLUM_SUFICIENT_APA && waterLvlHum <= LOW_LVL_HUM) {
+  if (waterVolume > VOLUM_SUFICIENT_APA && waterLvlHum <= LOW_LVL_HUM) {
     digitalWrite(pumpPin4, HIGH);
     timeHumOn = millis();
     allowHumToWork = true;
@@ -1346,6 +1341,9 @@ void shutdownAllActuators() {
     windowServo.write(servoPos);
     delay(20);
   }
+  requireWindow = false;
+  FansState = FANS_OFF;
+  IdleTimeWindow = IdleTimeFans = IdleTimeWindow = windowIsOpenedTime = 0;
 }
 
 void readAllSensors() {
