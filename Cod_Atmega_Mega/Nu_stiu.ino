@@ -1046,7 +1046,14 @@ void updateSerialBufferActuators() {
   currentState[5] = (ventilatorLastValue == 0) ? 0 : map(ventilatorLastValue, 1, 255, 1, 100);
 
   /* -------- digital mask -------- */
-  uint8_t dig = (digitalRead(pumpPin1) << 0) | (digitalRead(pumpPin2) << 1) | (digitalRead(pumpPin3) << 2) | (digitalRead(pumpPin4) << 3) | ((!digitalRead(humidifierPin)) << 4) | ((!digitalRead(growLightPin)) << 5) | ((!digitalRead(heatingPin_S1a)) << 6) | ((!digitalRead(heatingPin_S2a)) << 7);
+uint8_t dig = (digitalRead(pumpPin1) << 0) |
+              (digitalRead(pumpPin2) << 1) |
+              (digitalRead(pumpPin3) << 2) |
+              (digitalRead(pumpPin4) << 3) |
+              ((!digitalRead(humidifierPin)) << 4) |
+              ((!digitalRead(growLightPin)) << 5) |
+              ((!digitalRead(heatingPin_S1a)) << 6) |
+              ((!digitalRead(heatingPin_S2a)) << 7);
   currentState[8] = dig;
   currentState[9] = 0;
   bool changed = false;
@@ -1229,7 +1236,7 @@ void ControlHeatingSystem(uint8_t state) {
 
 void allowHumidifierToWork() {
   // Turn OFF conditions
-  if (waterLvlHum >= HIGH_LVL_HUM || (millis() - timeHumOn >= TIME_5_SECONDS) {
+  if (waterLvlHum >= HIGH_LVL_HUM || millis() - timeHumOn >= TIME_5_SECONDS) {
     digitalWrite(pumpPin4, LOW);
     allowHumToWork = true;
     timeHumOn = 0;
