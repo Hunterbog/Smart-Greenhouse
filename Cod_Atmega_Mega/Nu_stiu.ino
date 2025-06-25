@@ -4,6 +4,7 @@
 #include <Servo.h>
 #include <Wire.h>
 #include <BH1750.h>
+#include <EEPROM.h>
 
 #define setbit(data, bit) ((data) |= (1 << (bit)))
 #define clrbit(data, bit) ((data) &= ~(1 << (bit)))
@@ -272,7 +273,7 @@ unsigned long previousWaterLvlHumMillis = 0;
 
 void setup() {
 
-  // Configurare pini pentru senzori și actuatori
+
   pinMode(red, OUTPUT);
   pinMode(yellow, OUTPUT);
   pinMode(blue, OUTPUT);
@@ -311,6 +312,9 @@ void setup() {
   servoPos = SERVO_CLOSED;
   windowServo.write(servoPos);
   prevServoTime = millis();
+    // Configurare pini pentru senzori și actuatori
+  Serial.println(EEPROM.read(0));
+  command = EEPROM.read(0);
 }
 
 void allowWindowToWork() {
@@ -1042,7 +1046,7 @@ void updateSerialBufferActuators() {
   currentState[5] = (ventilatorLastValue == 0) ? 0 : map(ventilatorLastValue, 1, 255, 1, 100);
 
   /* -------- digital mask -------- */
-  uint8_t dig = (digitalRead(pumpPin1) << 0) | (digitalRead(pumpPin2) << 1) | (digitalRead(pumpPin3) << 2) | (digitalRead(pumpPin4) << 3) | (digitalRead(humidifierPin) << 4) | (digitalRead(growLightPin) << 5) | ((!digitalRead(heatingPin_S1a)) << 6) | ((!digitalRead(heatingPin_S1a)) << 7);
+  uint8_t dig = (digitalRead(pumpPin1) << 0) | (digitalRead(pumpPin2) << 1) | (digitalRead(pumpPin3) << 2) | (digitalRead(pumpPin4) << 3) | ((!digitalRead(humidifierPin)) << 4) | ((!digitalRead(growLightPin)) << 5) | ((!digitalRead(heatingPin_S1a)) << 6) | ((!digitalRead(heatingPin_S2a)) << 7);
   currentState[8] = dig;
   currentState[9] = 0;
   bool changed = false;
@@ -1178,11 +1182,14 @@ void handleHarvestFrame(const uint8_t *data) {
 
   if (data[0] == 'P') {
     command = START;
+    EEPROM.write(0, RUNNING);
   } else if (data[0] == 'O') {
+    EEPROM.write(0, IDLE);
     command = STOP;
     return;
   } else if (data[0] == 'R') {
     command = RUNNING;
+    EEPROM.write(0, RUNNING);
   }
 
   TemperatureDayLowerLimit = data[1];
@@ -1222,7 +1229,7 @@ void ControlHeatingSystem(uint8_t state) {
 
 void allowHumidifierToWork() {
   // Turn OFF conditions
-  if (waterLvlHum >= HIGH_LVL_HUM || (allowHumToWork && (millis() - timeHumOn >= TIME_5_SECONDS))) {
+  if (waterLvlHum >= HIGH_LVL_HUM || (millis() - timeHumOn >= TIME_5_SECONDS) {
     digitalWrite(pumpPin4, LOW);
     allowHumToWork = true;
     timeHumOn = 0;
