@@ -413,9 +413,9 @@ void handleSensorFrame(const uint8_t* data) {
   uint16_t soil2 = (data[2] << 8) | data[3];
   uint16_t soil3 = (data[4] << 8) | data[5];
 
-  uint8_t soil1Percent = constrain(map(soil1, 1015, 150, 0, 100), 0, 100);
-  uint8_t soil2Percent = constrain(map(soil2, 1015, 150, 0, 100), 0, 100);
-  uint8_t soil3Percent = constrain(map(soil3, 1015, 150, 0, 100), 0, 100);
+  uint8_t soil1Percent = map(soil1, 1015, 150, 0, 100);
+  uint8_t soil2Percent = map(soil2, 1015, 150, 0, 100);
+  uint8_t soil3Percent = map(soil3, 1015, 150, 0, 100);
 
   uint8_t waterLevel = data[6];
 
@@ -427,16 +427,17 @@ void handleSensorFrame(const uint8_t* data) {
   float dhtHumidity = humRaw / 100.0f;
 
   uint16_t lightLevel = (data[13] << 8) | data[14];
+   uint8_t percentlightLevel = min(100, (lightLevel * 100) / 1000);
 
   String sensorPayload = "{";
-  sensorPayload += "\"soil1Percent\":" + String(soil1) + ",";
-  sensorPayload += "\"soil2Percent\":" + String(soil2) + ",";
-  sensorPayload += "\"soil3Percent\":" + String(soil3) + ",";
+  sensorPayload += "\"soil1Percent\":" + String(soil1Percent) + ",";
+  sensorPayload += "\"soil2Percent\":" + String(soil2Percent) + ",";
+  sensorPayload += "\"soil3Percent\":" + String(soil3Percent) + ",";
   sensorPayload += "\"waterLevel\":" + String(waterLevel) + ",";
   sensorPayload += "\"waterVolume\":" + String(waterVolume, 2) + ",";
   sensorPayload += "\"temperature\":" + String(dhtTemp, 2) + ",";
   sensorPayload += "\"humidity\":" + String(dhtHumidity, 2) + ",";
-  sensorPayload += "\"light\":" + String(lightLevel);
+  sensorPayload += "\"light\":" + String(percentlightLevel);
   sensorPayload += "}";
 
   mqttClient.publish(mqttTopicData, sensorPayload.c_str());
