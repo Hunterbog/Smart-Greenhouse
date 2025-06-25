@@ -314,7 +314,7 @@ void setup() {
   prevServoTime = millis();
     // Configurare pini pentru senzori și actuatori
   Serial.println(EEPROM.read(0));
-  command = EEPROM.read(0);
+  //command = EEPROM.read(0);
 }
 
 void allowWindowToWork() {
@@ -701,7 +701,7 @@ void applicationLogic(ControlMode mode) {
           Serial.println("GEAM");
           requireWindow = actuator.value;
 
-          if (actuator.value == HIGH) allowWindow = true;
+          if (actuator.value == HIGH) allowWindow = ALLOWED;
           windowIsOpenedTime = (actuator.value == HIGH ? millis() : INVALID_TIMESTAMP);
           IdleTimeWindow = (actuator.value == LOW ? millis() : INVALID_TIMESTAMP);
           Serial.println(requireWindow);
@@ -1054,6 +1054,8 @@ uint8_t dig = (digitalRead(pumpPin1) << 0) |
               ((!digitalRead(growLightPin)) << 5) |
               ((!digitalRead(heatingPin_S1a)) << 6) |
               ((!digitalRead(heatingPin_S2a)) << 7);
+              Serial.println("Stare");
+              Serial.println(dig);
   currentState[8] = dig;
   currentState[9] = 0;
   bool changed = false;
