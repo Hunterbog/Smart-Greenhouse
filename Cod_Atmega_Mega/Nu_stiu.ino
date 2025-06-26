@@ -652,7 +652,8 @@ void applicationLogic(ControlMode mode) {
 
         case VENTILATOR1:
           Serial.println("VENTILATOR1");
-          analogWrite(ventilatorLeftPin, actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 50, 255));
+          ventilatorLastValue = actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 50, 255);
+          analogWrite(ventilatorLeftPin, ventilatorLastValue);
           if (actuator.value == LOW) {
             clrbit(FansState, 0);
             if (FansState == FANS_OFF) FansTime = INVALID_TIMESTAMP;
@@ -667,7 +668,8 @@ void applicationLogic(ControlMode mode) {
 
         case VENTILATOR2:
           Serial.println("VENTILATOR2");
-          analogWrite(ventilatorRightPin, actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 50, 255));
+          ventilatorLastValue = actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 50, 255);
+          analogWrite(ventilatorRightPin, ventilatorLastValue));
           if (actuator.value == LOW) {
             clrbit(FansState, 1);
             if (FansState == FANS_OFF) FansTime = INVALID_TIMESTAMP;
