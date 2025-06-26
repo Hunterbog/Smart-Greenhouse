@@ -849,7 +849,7 @@ void controlWeatherSystem() {
         analogWrite(ventilatorLeftPin, LOW_SPEED);
         analogWrite(ventilatorRightPin, LOW_SPEED);
         ventilatorLastValue = LOW_SPEED;
-        if (!FansState) {
+        if (FansState != FANS_ON) {
           FansTime = millis();  //Amprenta de timp pentru deschidere ventilatoare
           FansState = FANS_ON;
         }
@@ -862,7 +862,7 @@ void controlWeatherSystem() {
         }
         digitalWrite(humidifierPin, RELAY_OFF);
 
-        if (!FansState) {
+        if (FansState != FANS_ON) {
           FansTime = millis();  //Amprenta de timp pentru ventilatoare cand le deschid
           FansState = FANS_ON;
         }
@@ -892,7 +892,7 @@ void controlWeatherSystem() {
         analogWrite(ventilatorLeftPin, MEDIUM_SPEED);
         analogWrite(ventilatorRightPin, MEDIUM_SPEED);
         ventilatorLastValue = MEDIUM_SPEED;
-        if (!FansState) {
+        if (FansState != FANS_ON) {
           FansTime = millis();
           FansState = FANS_ON;
         }  //Amprenta de timp pentru ventilatoare
@@ -921,7 +921,7 @@ void controlWeatherSystem() {
             FansTime = INVALID_TIMESTAMP;
             IdleTimeFans = millis();
           }
-          if (millis() - IdleTimeFans >= TIME_1_HOUR && !FansState) {
+          if (millis() - IdleTimeFans >= TIME_1_HOUR && FansState != FANS_ON) {
             FansState = FANS_ON;
             IdleTimeFans = INVALID_TIMESTAMP;
             FansTime = millis();
@@ -934,7 +934,7 @@ void controlWeatherSystem() {
             requireWindow = true;  //Amprenta de timp pt geam cand il deschid
             windowIsOpenedTime = millis();
           }
-          if (!FansState) {
+          if (FansState != FANS_ON) {
             FansTime = millis();  //Amprenta de timp pentru ventilatoare cand le deschid
             FansState = FANS_ON;
           }
@@ -971,7 +971,7 @@ void controlWeatherSystem() {
             IdleTimeWindow = INVALID_TIMESTAMP;
             windowIsOpenedTime = millis();  // amprenta de tmp pt geam cand e deschis
           }
-          if (millis() - IdleTimeFans >= TIME_1_HOUR && !FansState) {
+          if (millis() - IdleTimeFans >= TIME_1_HOUR && FansState != FANS_ON) {
             FansState = FANS_ON;
             IdleTimeFans = INVALID_TIMESTAMP;
             FansTime = millis();  // amprenta de tmp pt ventilatoare cand sunt deschise
@@ -1013,7 +1013,7 @@ void controlWeatherSystem() {
         }
 
         // Pornire ventilatoare după pauză de 3 ore
-        if (millis() - IdleTimeFans >= TIME_3_HOUR && !FansState) {
+        if (millis() - IdleTimeFans >= TIME_3_HOUR && FansState != FANS_ON) {
           FansState = FANS_ON;
           FansTime = millis();
           IdleTimeFans = INVALID_TIMESTAMP;
