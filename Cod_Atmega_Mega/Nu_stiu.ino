@@ -110,7 +110,7 @@ const int poly = 0x1021;  // CRC-CCITT polynomial
 #define SERVO_CLOSED 165  // Poziția închisă a servo-ului
 #define SERVO_OPENED 40   // Poziția deschisă a servo-ului
 #define SERVO_DELAY 15    // Întârzierea între incrementări (ms)
-#define LOW_LVL_HUM 80
+#define LOW_LVL_HUM 100
 #define HIGH_LVL_HUM 500
 #define LOW_LIGHT_LEVEL 20
 #define OPTIMAL_LIGHT_LEVEL 450
@@ -230,7 +230,7 @@ unsigned int soilMoisture1, soilMoisture2, soilMoisture3;
 float dhtTemp, dhtHumidity;
 int lightLevel = 0;
 uint16_t waterLvlHum = 0;
-bool allowHumToWork = true;
+bool allowHumToWork = false;
 float waterVolume = 0.0;
 BH1750 lightMeter;
 /*===========================SENZORI-SFARSIT===========================*/
@@ -249,8 +249,10 @@ bool growLightState = false;                 // Starea luminii artificiale
 unsigned long artificialLightStartTime = 0;  // Timpul de pornire a luminii artificiale
 unsigned char Tx_BufferSensors[SENS_BUFF_SIZE] = { 0 };
 unsigned char Tx_BufferActuators[ACT_BUFF_SIZE] = { 0 };
-unsigned char ventilatorLastValue = 0;
-unsigned char heatingLastValue = 0;
+unsigned char ventilator1LastValue = 0;
+unsigned char ventilator2LastValue = 0;
+unsigned char heating1LastValue = 0;
+unsigned char heating2LastValue = 0;
 // Variabile pentru controlul servo (geam de aerisire)
 Servo windowServo;
 volatile int servoPos = SERVO_CLOSED;
@@ -272,8 +274,6 @@ unsigned long prevWaterLevel = 0;
 unsigned long previousWaterLvlHumMillis = 0;
 
 void setup() {
-
-
   pinMode(red, OUTPUT);
   pinMode(yellow, OUTPUT);
   pinMode(blue, OUTPUT);
@@ -312,9 +312,9 @@ void setup() {
   servoPos = SERVO_CLOSED;
   windowServo.write(servoPos);
   prevServoTime = millis();
-    // Configurare pini pentru senzori și actuatori
+  // Configurare pini pentru senzori și actuatori
   Serial.println(EEPROM.read(0));
-  //command = EEPROM.read(0);
+  // command = EEPROM.read(0);
 }
 
 void allowWindowToWork() {
@@ -327,7 +327,7 @@ void allowWindowToWork() {
 
 void loop() {
   while (Serial3.available() > 0) {
-   // Serial.println("Eu");
+    // Serial.println("Eu");
     uint8_t octet = Serial3.read();
     uartByteReceived(octet);
   }
@@ -347,7 +347,6 @@ void loop() {
       readAllSensors();
       updateCommunicationBuffers();
       applicationLogic(mode);
-
       break;
 
     default:
@@ -607,13 +606,13 @@ void applicationLogic(ControlMode mode) {
         windowServo.write(servoPos);
       }
     } else {
-        if (requireWindow) {
-          ClosedTimeRain += 20;
-        }
-        if (servoPos < SERVO_CLOSED) {
-          servoPos++;
-          windowServo.write(servoPos);
-        }
+      if (requireWindow) {
+        ClosedTimeRain += 20;
+      }
+      if (servoPos < SERVO_CLOSED) {
+        servoPos++;
+        windowServo.write(servoPos);
+      }
     }
   }
 
@@ -652,8 +651,8 @@ void applicationLogic(ControlMode mode) {
 
         case VENTILATOR1:
           Serial.println("VENTILATOR1");
-          ventilatorLastValue = actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 50, 255);
-          analogWrite(ventilatorLeftPin, ventilatorLastValue);
+          ventilator1LastValue = actuator.value;
+          analogWrite(ventilatorLeftPin, actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 50, 255));
           if (actuator.value == LOW) {
             clrbit(FansState, 0);
             if (FansState == FANS_OFF) FansTime = INVALID_TIMESTAMP;
@@ -668,8 +667,8 @@ void applicationLogic(ControlMode mode) {
 
         case VENTILATOR2:
           Serial.println("VENTILATOR2");
-          ventilatorLastValue = actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 50, 255);
-          analogWrite(ventilatorRightPin, ventilatorLastValue));
+          ventilator2LastValue = actuator.value;
+          analogWrite(ventilatorRightPin, actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 50, 255));
           if (actuator.value == LOW) {
             clrbit(FansState, 1);
             if (FansState == FANS_OFF) FansTime = INVALID_TIMESTAMP;
@@ -684,18 +683,20 @@ void applicationLogic(ControlMode mode) {
 
         case INCALZIRE1:
           Serial.println("INCALZIRE1");
+          heating1LastValue = actuator.value;
           digitalWrite(heatingPin_S1a, (actuator.value == LOW) ? RELAY_OFF : RELAY_ON);
           analogWrite(heatingPin_S1b, actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 30, 50));
           break;
 
         case INCALZIRE2:
           Serial.println("INCALZIRE2");
+          heating2LastValue = actuator.value == LOW;
           digitalWrite(heatingPin_S2a, (actuator.value == LOW) ? RELAY_OFF : RELAY_ON);
           analogWrite(heatingPin_S2b, actuator.value == LOW ? LOW : map(actuator.value, 1, 100, 30, 50));
           break;
 
         case UMIDIFICATOR:
-          Serial.println("Activare: UMIDIFICATOR");
+          Serial.println("UMIDIFICATOR");
           digitalWrite(humidifierPin, (actuator.value == LOW) ? RELAY_OFF : RELAY_ON);
           break;
 
@@ -711,7 +712,7 @@ void applicationLogic(ControlMode mode) {
           break;
 
         case LUMINA:
-          Serial.println("Activare: LUMINA");
+          Serial.println("LUMINA");
           digitalWrite(growLightPin, (actuator.value == HIGH) ? RELAY_ON : RELAY_OFF);
           artificialLightStartTime = (actuator.value == HIGH ? millis() : INVALID_TIMESTAMP);
           growLightState = actuator.value;
@@ -731,8 +732,8 @@ void applicationLogic(ControlMode mode) {
   }
 }
 
-template <typename T>
-int partition(T* arr, int low, int high) {
+template<typename T>
+int partition(T *arr, int low, int high) {
   T pivot = arr[high];
   int i = low - 1;
 
@@ -755,8 +756,8 @@ int partition(T* arr, int low, int high) {
   return i;
 }
 
-template <typename T>
-void quickSort(T* arr, int low, int high) {
+template<typename T>
+void quickSort(T *arr, int low, int high) {
   if (low < high) {
     int pi = partition(arr, low, high);
     quickSort(arr, low, pi - 1);
@@ -764,9 +765,9 @@ void quickSort(T* arr, int low, int high) {
   }
 }
 
-template <typename T>
-T getMedian(T* arr, int size) {
-  T sorted[size]; 
+template<typename T>
+T getMedian(T *arr, int size) {
+  T sorted[size];
   memcpy(sorted, arr, sizeof(sorted));
   quickSort(sorted, 0, size - 1);
   return sorted[size / 2];
@@ -838,6 +839,7 @@ void controlWeatherSystem() {
       digitalWrite(red, HIGH);
       digitalWrite(blue, LOW);
       digitalWrite(yellow, LOW);
+      ControlHeatingSystem(STD_OFF);
       if (humidity == HUMIDITY_LOW) {  //Nivelul de umidate este MIC
         //Serial.println("//Nivelul de umidate este MIC");
         if (requireWindow) {
@@ -850,8 +852,8 @@ void controlWeatherSystem() {
         if (allowHumToWork) { digitalWrite(humidifierPin, RELAY_ON); }
         analogWrite(ventilatorLeftPin, LOW_SPEED);
         analogWrite(ventilatorRightPin, LOW_SPEED);
-        ventilatorLastValue = LOW_SPEED;
-        if (FansState != FANS_ON) {
+        ventilator1LastValue = ventilator2LastValue  = LOW_SPEED;
+        if (FansState == FANS_OFF) {
           FansTime = millis();  //Amprenta de timp pentru deschidere ventilatoare
           FansState = FANS_ON;
         }
@@ -864,17 +866,17 @@ void controlWeatherSystem() {
         }
         digitalWrite(humidifierPin, RELAY_OFF);
 
-        if (FansState != FANS_ON) {
+        if (FansState == FANS_OFF) {
           FansTime = millis();  //Amprenta de timp pentru ventilatoare cand le deschid
           FansState = FANS_ON;
         }
         analogWrite(ventilatorLeftPin, HIGH_SPEED);
         analogWrite(ventilatorRightPin, HIGH_SPEED);
-        ventilatorLastValue = HIGH_SPEED;
+        ventilator1LastValue = ventilator2LastValue = HIGH_SPEED;
         break;
       } else if (humidity == HUMIDITY_NORMAL) {  //Nivelul de umidaitate este OPTIM -- impart in doua daca trece peste valoarea optima sting umidifcatorul, daca e sub el il las aprins ca sa racesc camera
                                                  //Serial.println("Nivelul de umidate este Mediu");
-        if (digitalRead(humidifierPin) == RELAY_OFF && dhtHumidity <= ((HumidityLowerLimit + HumidityUpperLimit) / 2.0)) {
+        if (digitalRead(humidifierPin) == RELAY_OFF && dhtHumidity <= ((HumidityLowerLimit + HumidityUpperLimit) / 2.0) && allowHumToWork) {
           digitalWrite(humidifierPin, RELAY_ON);
         } else if (digitalRead(humidifierPin) == RELAY_ON && dhtHumidity > ((HumidityLowerLimit + HumidityUpperLimit) / 2.0) + hysteresisBuffer) {
           digitalWrite(humidifierPin, RELAY_OFF);
@@ -882,10 +884,10 @@ void controlWeatherSystem() {
 
         if (millis() - windowIsOpenedTime > (TIME_10_MINUTES + ClosedTimeRain) && requireWindow == true) {  // las geamul deschis timp de 10 minute in caz ca nivelul de umiditate este in parametrii normali
           ClosedTimeRain = 0;
-          requireWindow = false;                                                                            //Amprenta de timp pentru inchidere geam
+          requireWindow = false;  //Amprenta de timp pentru inchidere geam
           windowIsOpenedTime = INVALID_TIMESTAMP;
           IdleTimeWindow = millis();
-        } else if (millis() - IdleTimeWindow >= TIME_3_HOUR && requireWindow == false) {
+        } else if (millis() - IdleTimeWindow >= TIME_3_HOUR && requireWindow == false && FansState == FANS_ON) {
           windowIsOpenedTime = millis();
           IdleTimeWindow = INVALID_TIMESTAMP;
           requireWindow = true;
@@ -893,8 +895,8 @@ void controlWeatherSystem() {
         //Ventilatoarele le las mereu pornite
         analogWrite(ventilatorLeftPin, MEDIUM_SPEED);
         analogWrite(ventilatorRightPin, MEDIUM_SPEED);
-        ventilatorLastValue = MEDIUM_SPEED;
-        if (FansState != FANS_ON) {
+        ventilator1LastValue = ventilator2LastValue  = MEDIUM_SPEED;
+        if (FansState == FANS_OFF) {
           FansTime = millis();
           FansState = FANS_ON;
         }  //Amprenta de timp pentru ventilatoare
@@ -919,34 +921,34 @@ void controlWeatherSystem() {
             FansState = FANS_OFF;
             analogWrite(ventilatorLeftPin, 0);
             analogWrite(ventilatorRightPin, 0);
-            ventilatorLastValue = 0;
+            ventilator1LastValue = ventilator2LastValue  = 0;
             FansTime = INVALID_TIMESTAMP;
             IdleTimeFans = millis();
           }
-          if (millis() - IdleTimeFans >= TIME_1_HOUR && FansState != FANS_ON) {
+          if (millis() - IdleTimeFans >= TIME_1_HOUR && FansState == FANS_OFF) {
             FansState = FANS_ON;
             IdleTimeFans = INVALID_TIMESTAMP;
             FansTime = millis();
             analogWrite(ventilatorLeftPin, LOW_SPEED);
             analogWrite(ventilatorRightPin, LOW_SPEED);
-            ventilatorLastValue = LOW_SPEED;
+            ventilator1LastValue = ventilator2LastValue = LOW_SPEED;
           }
         } else if (humidity == HUMIDITY_HIGH) {  //Nivelul de umidate este MARE
           if (!requireWindow) {
             requireWindow = true;  //Amprenta de timp pt geam cand il deschid
             windowIsOpenedTime = millis();
           }
-          if (FansState != FANS_ON) {
+          if (FansState == FANS_OFF) {
             FansTime = millis();  //Amprenta de timp pentru ventilatoare cand le deschid
             FansState = FANS_ON;
           }
           digitalWrite(humidifierPin, RELAY_OFF);
           analogWrite(ventilatorLeftPin, MEDIUM_SPEED);
           analogWrite(ventilatorRightPin, MEDIUM_SPEED);
-          ventilatorLastValue = MEDIUM_SPEED;
+          ventilator1LastValue = ventilator2LastValue  = MEDIUM_SPEED;
         } else if (humidity == HUMIDITY_NORMAL) {  //Nivelul de umiditate este OPTIM -- deschid geamul la diferite intervale de timp si dau drumul la ventilatoare la diferite intervale de timp - la fiecare ora le las timp de 10 min
           // Mai jos verific cum proedez pt. umidiifator
-          if (digitalRead(humidifierPin) == RELAY_OFF && dhtHumidity <= ((HumidityLowerLimit + HumidityUpperLimit) / 2.0)) {
+          if (digitalRead(humidifierPin) == RELAY_OFF && dhtHumidity <= ((HumidityLowerLimit + HumidityUpperLimit) / 2.0) && allowHumToWork) {
             digitalWrite(humidifierPin, RELAY_ON);
           } else if (digitalRead(humidifierPin) == RELAY_ON && dhtHumidity > ((HumidityLowerLimit + HumidityUpperLimit) / 2.0) + hysteresisBuffer) {
             digitalWrite(humidifierPin, RELAY_OFF);
@@ -957,7 +959,7 @@ void controlWeatherSystem() {
             FansTime = INVALID_TIMESTAMP;
             analogWrite(ventilatorLeftPin, 0);
             analogWrite(ventilatorRightPin, 0);
-            ventilatorLastValue = 0;
+            ventilator1LastValue = ventilator2LastValue  = 0;
             IdleTimeFans = millis();  // Amprenta de timp ventilator cand e stins
           }
           if (millis() - windowIsOpenedTime > (TIME_10_MINUTES + ClosedTimeRain) && requireWindow) {
@@ -968,18 +970,18 @@ void controlWeatherSystem() {
           }
 
           //Mai jos verific daca deschid geamul si ventilatorul
-          if (millis() - IdleTimeWindow >= TIME_1_HOUR && !requireWindow) {
+          if (millis() - IdleTimeWindow >= TIME_1_HOUR && !requireWindow && FansState == FANS_ON) {
             requireWindow = true;
             IdleTimeWindow = INVALID_TIMESTAMP;
             windowIsOpenedTime = millis();  // amprenta de tmp pt geam cand e deschis
           }
-          if (millis() - IdleTimeFans >= TIME_1_HOUR && FansState != FANS_ON) {
+          if (millis() - IdleTimeFans >= TIME_1_HOUR && FansState == FANS_OFF) {
             FansState = FANS_ON;
             IdleTimeFans = INVALID_TIMESTAMP;
             FansTime = millis();  // amprenta de tmp pt ventilatoare cand sunt deschise
             analogWrite(ventilatorLeftPin, MEDIUM_SPEED);
             analogWrite(ventilatorRightPin, MEDIUM_SPEED);
-            ventilatorLastValue = MEDIUM_SPEED;
+            ventilator1LastValue = ventilator2LastValue  = MEDIUM_SPEED;
           }
         }
         break;
@@ -1009,19 +1011,19 @@ void controlWeatherSystem() {
           FansState = FANS_OFF;
           analogWrite(ventilatorLeftPin, 0);
           analogWrite(ventilatorRightPin, 0);
-          ventilatorLastValue = 0;
+          ventilator1LastValue = ventilator2LastValue  = 0;
           IdleTimeFans = millis();
           FansTime = INVALID_TIMESTAMP;
         }
 
         // Pornire ventilatoare după pauză de 3 ore
-        if (millis() - IdleTimeFans >= TIME_3_HOUR && FansState != FANS_ON) {
+        if (millis() - IdleTimeFans >= TIME_3_HOUR && FansState == FANS_OFF) {
           FansState = FANS_ON;
           FansTime = millis();
           IdleTimeFans = INVALID_TIMESTAMP;
           analogWrite(ventilatorLeftPin, LOW_SPEED);
           analogWrite(ventilatorRightPin, LOW_SPEED);
-          ventilatorLastValue = LOW_SPEED;
+          ventilator1LastValue = ventilator2LastValue  = LOW_SPEED;
         }
 
         break;
@@ -1042,22 +1044,15 @@ void updateSerialBufferActuators() {
   currentState[3] = requireWindow && (allowWindow & ALLOWED == ALLOWED);
   /* -------- PWM actuators -------- */
 
-  currentState[6] = (heatingLastValue == 0) ? 0 : map(heatingLastValue, 30, 50, 1, 100);
-  currentState[7] = (heatingLastValue == 0) ? 0 : map(heatingLastValue, 30, 50, 1, 100);
-  currentState[4] = (ventilatorLastValue == 0) ? 0 : map(ventilatorLastValue, 1, 255, 1, 100);
-  currentState[5] = (ventilatorLastValue == 0) ? 0 : map(ventilatorLastValue, 1, 255, 1, 100);
+  currentState[6] = (heating1LastValue == 0) ? 0 : map(heating1LastValue, 30, 50, 1, 100);
+  currentState[7] = (heating2LastValue == 0) ? 0 : map(heating2LastValue, 30, 50, 1, 100);
+  currentState[4] = (ventilator1LastValue == 0) ? 0 : map(ventilator1LastValue, 1, 255, 1, 100);
+  currentState[5] = (ventilator2LastValue == 0) ? 0 : map(ventilator2LastValue, 1, 255, 1, 100);
 
   /* -------- digital mask -------- */
-uint8_t dig = (digitalRead(pumpPin1) << 0) |
-              (digitalRead(pumpPin2) << 1) |
-              (digitalRead(pumpPin3) << 2) |
-              (digitalRead(pumpPin4) << 3) |
-              ((!digitalRead(humidifierPin)) << 4) |
-              ((!digitalRead(growLightPin)) << 5) |
-              ((!digitalRead(heatingPin_S1a)) << 6) |
-              ((!digitalRead(heatingPin_S2a)) << 7);
-              Serial.println("Stare");
-              Serial.println(dig);
+  uint8_t dig = (digitalRead(pumpPin1) << 0) | (digitalRead(pumpPin2) << 1) | (digitalRead(pumpPin3) << 2) | (digitalRead(pumpPin4) << 3) | ((!digitalRead(humidifierPin)) << 4) | ((!digitalRead(growLightPin)) << 5) | ((!digitalRead(heatingPin_S1a)) << 6) | ((!digitalRead(heatingPin_S2a)) << 7);
+  // Serial.println("Stare");
+  // Serial.println(dig);
   currentState[8] = dig;
   currentState[9] = 0;
   bool changed = false;
@@ -1067,7 +1062,8 @@ uint8_t dig = (digitalRead(pumpPin1) << 0) |
       break;
     }
   }
-
+  Serial.println("Schimb stare in functie:");
+  Serial.println(changed);
   /* -------- CRC -------- */
   if (changed) {
     memcpy(Tx_BufferActuators, currentState, ACT_BUFF_SIZE - 2);
@@ -1193,14 +1189,17 @@ void handleHarvestFrame(const uint8_t *data) {
 
   if (data[0] == 'P') {
     command = START;
-    EEPROM.write(0, RUNNING);
+    Serial.println("Scrisai in eeprom");
+    //EEPROM.write(0, RUNNING);
   } else if (data[0] == 'O') {
-    EEPROM.write(0, IDLE);
+    Serial.println("Scrisai in eeprom");
+    //EEPROM.write(0, IDLE);
     command = STOP;
     return;
   } else if (data[0] == 'R') {
     command = RUNNING;
-    EEPROM.write(0, RUNNING);
+    Serial.println("Scrisai in eeprom");
+    //EEPROM.write(0, RUNNING);
   }
 
   TemperatureDayLowerLimit = data[1];
@@ -1228,19 +1227,21 @@ void ControlHeatingSystem(uint8_t state) {
     digitalWrite(heatingPin_S2a, RELAY_ON);
     analogWrite(heatingPin_S1b, 35);
     digitalWrite(heatingPin_S1a, RELAY_ON);
-    heatingLastValue = 35;
+    heating1LastValue = heating2LastValue = 35;
   } else {
     analogWrite(heatingPin_S2b, LOW);
     digitalWrite(heatingPin_S2a, RELAY_OFF);
     digitalWrite(heatingPin_S1a, RELAY_OFF);
     analogWrite(heatingPin_S1b, LOW);
-    heatingLastValue = 0;
+    heating1LastValue = heating2LastValue = 0;
   }
 }
 
 void allowHumidifierToWork() {
   // Turn OFF conditions
-  if (waterLvlHum >= HIGH_LVL_HUM || millis() - timeHumOn >= TIME_5_SECONDS) {
+
+  allowHumToWork = (waterLvlHum > LOW_LVL_HUM);
+  if ((waterLvlHum >= HIGH_LVL_HUM || millis() - timeHumOn >= TIME_5_SECONDS) && digitalRead(pumpPin4) == HIGH) {
     digitalWrite(pumpPin4, LOW);
     allowHumToWork = true;
     timeHumOn = 0;
@@ -1251,7 +1252,6 @@ void allowHumidifierToWork() {
   if (waterVolume > VOLUM_SUFICIENT_APA && waterLvlHum <= LOW_LVL_HUM) {
     digitalWrite(pumpPin4, HIGH);
     timeHumOn = millis();
-    allowHumToWork = false;
     // Serial.println("Pump ON");
   }
 }
