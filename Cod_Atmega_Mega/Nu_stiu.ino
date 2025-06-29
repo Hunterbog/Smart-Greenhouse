@@ -47,7 +47,7 @@ unsigned long windowIsOpenedTime = 0;
 #define UpdateTxBufferSensors 60000  // Interval trimitere date serial
 #define UpdateTxBufferActuators 2000
 #define RainSensorRead 1000
-#define WaterLvlHumUpdate 200
+#define WaterLvlHumUpdate 1000
 #define WaterLevelRead 200
 
 #define INVALID_TIMESTAMP 0xFFFFFFFFUL
@@ -91,7 +91,7 @@ unsigned long windowIsOpenedTime = 0;
 #define TIME_10_MINUTES (10UL * 1000UL)  // 10 minutes = 600,000 ms
 #define TIME_20_MINUTES (2 * TIME_10_MINUTES)
 #define TIME_10_SECONDS (10000UL)
-#define TIME_5_SECONDS (5000UL)
+#define TIME_7_SECONDS (7000UL)
 #define MIN_IDLE_TIME TIME_10_MINUTES
 #define RX_BUF_MAX 32
 const char ACTUATOR_PKT_ID = 'A';
@@ -110,7 +110,7 @@ const int poly = 0x1021;  // CRC-CCITT polynomial
 #define SERVO_CLOSED 165  // Poziția închisă a servo-ului
 #define SERVO_OPENED 40   // Poziția deschisă a servo-ului
 #define SERVO_DELAY 15    // Întârzierea între incrementări (ms)
-#define LOW_LVL_HUM 100
+#define LOW_LVL_HUM 200
 #define HIGH_LVL_HUM 500
 #define LOW_LIGHT_LEVEL 20
 #define OPTIMAL_LIGHT_LEVEL 450
@@ -147,7 +147,7 @@ static uint8_t index = 0;
 
 
 /*========================Resurse Haardware=======================*/
-#define DHTPIN A7
+#define DHTPIN A6
 #define DHTTYPE DHT22
 const int pinHigrometru1 = A0;  // intrare analogica senzor umiditate parcela 1
 const int pinHigrometru2 = A1;  // intrare analogica senzor umiditate parcela 2
@@ -263,6 +263,7 @@ volatile uint8_t allowWindow = 0xF;
 unsigned long ClosedTimeRain = 0;
 bool changedFromMode = false;
 unsigned char countOfChangedMode = 0;
+bool statePump4 = false;
 /*===========================VARIABILE-SFARSIT===========================*/
 
 // Variabile pentru citirea senzorilor la intervale specifice
@@ -374,7 +375,7 @@ void readLightSensor() {
 }
 
 void readWaterLvlHum() {
-  const int numSamples = 3;
+  const int numSamples = 5;
   static int samples[numSamples] = { 0 };
   static int index = 0;
 
@@ -384,8 +385,8 @@ void readWaterLvlHum() {
     index = 0;
     waterLvlHum = getMedian(samples, numSamples);
 
-    // Serial.print("Water Level Humf: ");
-    // Serial.println(waterLvlHum);
+    Serial.print("Water Level Humf: ");
+    Serial.println(waterLvlHum);
   }
 }
 
@@ -1052,24 +1053,14 @@ void updateSerialBufferActuators() {
   /* -------- Servo-------- */
   currentState[3] = requireWindow && (allowWindow & ALLOWED == ALLOWED);
   /* -------- PWM actuators -------- */
-  // if (heating1LastValue == heating2LastValue) {
   currentState[6] = (heating1LastValue == 0) ? 0 : map(heating1LastValue, 30, 50, 1, 100);
   currentState[7] = (heating2LastValue == 0) ? 0 : map(heating2LastValue, 30, 50, 1, 100);
-  // } else {
-  //   currentState[6] = heating1LastValue;
-  //   currentState[7] = heating2LastValue;
-  // }
-  // if (ventilator1LastValue == ventilator2LastValue) {
   currentState[4] = (ventilator1LastValue == 0) ? 0 : map(ventilator1LastValue, 1, 255, 1, 100);
   currentState[5] = (ventilator2LastValue == 0) ? 0 : map(ventilator2LastValue, 1, 255, 1, 100);
-  // } else {
-  //   currentState[4] = ventilator1LastValue;
-  //   currentState[5] = ventilator2LastValue;
-  // }
+
   /* -------- digital mask -------- */
   uint8_t dig = (digitalRead(pumpPin1) << 0) | (digitalRead(pumpPin2) << 1) | (digitalRead(pumpPin3) << 2) | (digitalRead(pumpPin4) << 3) | ((!digitalRead(humidifierPin)) << 4) | ((!digitalRead(growLightPin)) << 5) | ((!digitalRead(heatingPin_S1a)) << 6) | ((!digitalRead(heatingPin_S2a)) << 7);
-  // Serial.println("Stare");
-  // Serial.println(dig);
+
   currentState[8] = dig;
   currentState[9] = 0;
   bool changed = false;
@@ -1106,7 +1097,7 @@ void updateSerialBufferSensors() {
   Tx_BufferSensors[8] = uint8_t(soilMoisture3);
 
   /* -------- water sensors -------- */
-  Tx_BufferSensors[9] = uint8_t((uint32_t)waterLvlHum * 100 / 600);
+  Tx_BufferSensors[9] = mapWaterLevel(waterLvlHum);
 
   uint16_t volX100 = uint16_t(waterVolume * 100.0f);
   Tx_BufferSensors[10] = uint8_t(waterVolume);
@@ -1251,17 +1242,17 @@ void ControlHeatingSystem(uint8_t state) {
     heating1LastValue = heating2LastValue = 0;
   }
 }
-
-bool statePump4 = false;
+bool ok = false;
 void allowHumidifierToWork() {
   // Turn OFF conditions
 
   allowHumToWork = (waterLvlHum > LOW_LVL_HUM);
-  if ((waterLvlHum >= HIGH_LVL_HUM || millis() - timeHumOn >= TIME_5_SECONDS) && statePump4 == true) {
+  if (millis() - timeHumOn >= TIME_7_SECONDS && statePump4 == true) {
     digitalWrite(pumpPin4, LOW);
     allowHumToWork = true;
     timeHumOn = 0;
     statePump4 = false;
+     Serial.println("Pump OFF");
     return;
   }
 
@@ -1270,7 +1261,8 @@ void allowHumidifierToWork() {
     digitalWrite(pumpPin4, HIGH);
     timeHumOn = millis();
     statePump4 = true;
-    // Serial.println("Pump ON");
+    if(!ok)Serial.println("Pump ON");
+    ok =true;
   }
 }
 
@@ -1409,7 +1401,7 @@ void readAllSensors() {
     allowWindowToWork();
   }
 
-  if ((millis() - prevWaterLevel >= WaterLevelRead) && (digitalRead(pumpPin1) == LOW && digitalRead(pumpPin2) == LOW && digitalRead(pumpPin3) == LOW)) {
+  if ((millis() - prevWaterLevel >= WaterLevelRead) && (digitalRead(pumpPin1) == LOW && digitalRead(pumpPin2) == LOW && digitalRead(pumpPin3) == LOW && digitalRead(pumpPin4) == LOW)) {
     prevWaterLevel = millis();
     readWaterLevel();
   }
@@ -1423,5 +1415,29 @@ void updateCommunicationBuffers() {
   if (millis() - prevUpdateTxBufferSensors >= UpdateTxBufferSensors && (FirstReadSensors == FIRST_SENSORS_READ)) {
     prevUpdateTxBufferSensors = millis();
     updateSerialBufferSensors();
+  }
+}
+
+uint8_t mapWaterLevel(uint16_t waterLvlHum) {
+  if (waterLvlHum >= 590) return 100;
+  else if (waterLvlHum >= 510) {
+    // între 515 și 600 → 50% până la 100%
+    return 50 + (waterLvlHum - 510) * 50 / (590 - 510);
+  } 
+  else if (waterLvlHum >= 460) {
+    // între 460 și 515 → 25% până la 50%
+    return 25 + (waterLvlHum - 460) * 25 / (510 - 460);
+  }
+  else if (waterLvlHum >= 285) {
+    // între 285 și 460 → 10% până la 25%
+    return 10 + (waterLvlHum - 285) * 15 / (460 - 285);
+  }
+  else if (waterLvlHum > 200) {
+    // între 200 și 285 → 0% până la 10%
+    return (waterLvlHum - 200) * 10 / (285 - 200);
+  }
+  else {
+    // sub 200 → considerăm 0%
+    return 0;
   }
 }
