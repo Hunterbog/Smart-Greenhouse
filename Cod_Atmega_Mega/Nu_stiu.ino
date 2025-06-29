@@ -375,20 +375,49 @@ void readLightSensor() {
 }
 
 void readWaterLvlHum() {
+  bool isRelayOn = digitalRead(humidifierPin) == RELAY_ON;
   const int numSamples = 5;
-  static int samples[numSamples] = { 0 };
-  static int index = 0;
+  const int safeSamples = 10;
 
-  // Take a new reading
-  samples[index++] = analogRead(pinUmiLvl);
-  if (index == numSamples) {
-    index = 0;
-    waterLvlHum = getMedian(samples, numSamples);
+  static int samples[numSamples] = {0};
+  static int tempSamples[safeSamples] = {0};
 
-    Serial.print("Water Level Humf: ");
-    Serial.println(waterLvlHum);
+  static int index1 = 0; 
+  static int index2 = 0; 
+
+  if (!isRelayOn) {
+    // Relay is OFF – normal reading
+    index2 = 0; // reset other index
+    samples[index1++] = analogRead(pinUmiLvl);
+
+    if (index1 == numSamples) {
+      index1 = 0;
+      int median = getMedian(samples, numSamples);
+      waterLvlHum = median;
+
+      Serial.print("Water Level (Relay OFF): ");
+      Serial.println(waterLvlHum);
+    }
+  } else {
+    index1 = 0; // reset other index
+    tempSamples[index2++] = analogRead(pinUmiLvl);
+
+    if (index2 == safeSamples) {
+      index2 = 0;
+      int median = getMedian(tempSamples, safeSamples);
+      int diff = abs(median - waterLvlHum);
+
+      if (diff <= 10) {
+        waterLvlHum = median;
+        Serial.print("Water Level (Relay ON, accepted): ");
+        Serial.println(waterLvlHum);
+      } else {
+        Serial.println("Reading ignored (Relay ON, unstable)");
+      }
+    }
   }
 }
+
 
 void readMoistureSensor() {
   const int numSamples = 60;
@@ -1252,7 +1281,7 @@ void allowHumidifierToWork() {
     allowHumToWork = true;
     timeHumOn = 0;
     statePump4 = false;
-     Serial.println("Pump OFF");
+    Serial.println("Pump OFF");
     return;
   }
 
@@ -1261,8 +1290,8 @@ void allowHumidifierToWork() {
     digitalWrite(pumpPin4, HIGH);
     timeHumOn = millis();
     statePump4 = true;
-    if(!ok)Serial.println("Pump ON");
-    ok =true;
+    if (!ok) Serial.println("Pump ON");
+    ok = true;
   }
 }
 
@@ -1421,22 +1450,17 @@ void updateCommunicationBuffers() {
 uint8_t mapWaterLevel(uint16_t waterLvlHum) {
   if (waterLvlHum >= 590) return 100;
   else if (waterLvlHum >= 510) {
-    // între 515 și 600 → 50% până la 100%
+
     return 50 + (waterLvlHum - 510) * 50 / (590 - 510);
-  } 
-  else if (waterLvlHum >= 460) {
-    // între 460 și 515 → 25% până la 50%
+  } else if (waterLvlHum >= 460) {
     return 25 + (waterLvlHum - 460) * 25 / (510 - 460);
-  }
-  else if (waterLvlHum >= 285) {
+  } else if (waterLvlHum >= 285) {
     // între 285 și 460 → 10% până la 25%
     return 10 + (waterLvlHum - 285) * 15 / (460 - 285);
-  }
-  else if (waterLvlHum > 200) {
+  } else if (waterLvlHum > 200) {
     // între 200 și 285 → 0% până la 10%
     return (waterLvlHum - 200) * 10 / (285 - 200);
-  }
-  else {
+  } else {
     // sub 200 → considerăm 0%
     return 0;
   }
