@@ -378,16 +378,12 @@ void readWaterLvlHum() {
   bool isRelayOn = digitalRead(humidifierPin) == RELAY_ON;
   const int numSamples = 5;
   const int safeSamples = 10;
-
-  static int samples[numSamples] = {0};
-  static int tempSamples[safeSamples] = {0};
-
-  static int index1 = 0; 
-  static int index2 = 0; 
-
+  static int samples[numSamples] = { 0 };
+  static int tempSamples[safeSamples] = { 0 };
+  static int index1 = 0;
+  static int index2 = 0;
   if (!isRelayOn) {
-    // Relay is OFF – normal reading
-    index2 = 0; // reset other index
+    index2 = 0;
     samples[index1++] = analogRead(pinUmiLvl);
 
     if (index1 == numSamples) {
@@ -395,27 +391,27 @@ void readWaterLvlHum() {
       int median = getMedian(samples, numSamples);
       waterLvlHum = median;
 
-      Serial.print("Water Level (Relay OFF): ");
-      Serial.println(waterLvlHum);
+      // Serial.print("Water Level: ");
+      // Serial.println(waterLvlHum);
     }
-  } else {
-    index1 = 0; // reset other index
-    tempSamples[index2++] = analogRead(pinUmiLvl);
+  }  //else {
+  //   index1 = 0; // reset other index
+  //   tempSamples[index2++] = analogRead(pinUmiLvl);
 
-    if (index2 == safeSamples) {
-      index2 = 0;
-      int median = getMedian(tempSamples, safeSamples);
-      int diff = abs(median - waterLvlHum);
+  //   if (index2 == safeSamples) {
+  //     index2 = 0;
+  //     int median = getMedian(tempSamples, safeSamples);
+  //     int diff = abs(median - waterLvlHum);
 
-      if (diff <= 10) {
-        waterLvlHum = median;
-        Serial.print("Water Level (Relay ON, accepted): ");
-        Serial.println(waterLvlHum);
-      } else {
-        Serial.println("Reading ignored (Relay ON, unstable)");
-      }
-    }
-  }
+  //     if (diff <= 10) {
+  //       waterLvlHum = median;
+  //       Serial.print("Water Level (Relay ON, accepted): ");
+  //       Serial.println(waterLvlHum);
+  //     } else {
+  //       Serial.println("Reading ignored (Relay ON, unstable)");
+  //     }
+  //   }
+  // }
 }
 
 
@@ -488,21 +484,38 @@ void readTemperatureHumiditySensor() {
 
 void readWaterLevel() {
   const int numSamples = 10;
+  const int volumeAvgSamples = 10;
   static float samples[numSamples] = { 0 };
+  static float volumeHistory[volumeAvgSamples] = { 0 };
   static int index = 0;
+  static int volumeIndex = 0;
 
-  // Take a new reading
   samples[index++] = calculeazaVolumApaInLitri();
+
   if (index == numSamples) {
     index = 0;
     setbit(FirstReadSensors, 3);
-    waterVolume = getMedian(samples, numSamples);
+    float currentMedian = getMedian(samples, numSamples);
+    volumeHistory[volumeIndex++] = currentMedian;
 #if DEBUG == STD_ON
-    //  Serial.println("Volum:");
-    // Serial.println(waterVolume);
+    Serial.println("Volum median:");
+    Serial.println(currentMedian);
 #endif
+    if (volumeIndex == volumeAvgSamples) {
+      volumeIndex = 0;
+      float sum = 0;
+      for (int i = 0; i < volumeAvgSamples; i++) {
+        sum += volumeHistory[i];
+      }
+      waterVolume = sum / volumeAvgSamples;
+#if DEBUG == STD_ON
+      Serial.println("Volum:");
+      Serial.println(waterVolume);
+#endif
+    }
   }
 }
+
 
 float calculeazaVolumApaInLitri() {
   float distanta = Distance();
@@ -1430,7 +1443,7 @@ void readAllSensors() {
     allowWindowToWork();
   }
 
-  if ((millis() - prevWaterLevel >= WaterLevelRead) && (digitalRead(pumpPin1) == LOW && digitalRead(pumpPin2) == LOW && digitalRead(pumpPin3) == LOW && digitalRead(pumpPin4) == LOW)) {
+  if ((millis() - prevWaterLevel >= WaterLevelRead) && (digitalRead(pumpPin1) == LOW && digitalRead(pumpPin2) == LOW && digitalRead(pumpPin3) == LOW && !statePump4)) {
     prevWaterLevel = millis();
     readWaterLevel();
   }
@@ -1448,18 +1461,19 @@ void updateCommunicationBuffers() {
 }
 
 uint8_t mapWaterLevel(uint16_t waterLvlHum) {
-  if (waterLvlHum >= 590) return 100;
-  else if (waterLvlHum >= 510) {
-
-    return 50 + (waterLvlHum - 510) * 50 / (590 - 510);
-  } else if (waterLvlHum >= 460) {
-    return 25 + (waterLvlHum - 460) * 25 / (510 - 460);
-  } else if (waterLvlHum >= 285) {
-    // între 285 și 460 → 10% până la 25%
-    return 10 + (waterLvlHum - 285) * 15 / (460 - 285);
-  } else if (waterLvlHum > 200) {
-    // între 200 și 285 → 0% până la 10%
-    return (waterLvlHum - 200) * 10 / (285 - 200);
+  if (waterLvlHum >= 490) return 100;
+  else if (waterLvlHum >= 475) {
+    // între 475 și 490 → 75% până la 100%
+    return 75 + (waterLvlHum - 475) * 25 / (490 - 475);
+  } else if (waterLvlHum >= 440) {
+    // între 440 și 475 → 50% până la 75%
+    return 50 + (waterLvlHum - 440) * 25 / (475 - 440);
+  } else if (waterLvlHum >= 300) {
+    // între 300 și 440 → 25% până la 50%
+    return 25 + (waterLvlHum - 300) * 25 / (440 - 300);
+  } else if (waterLvlHum >= 200) {
+    // între 200 și 300 → 0% până la 25%
+    return (waterLvlHum - 200) * 25 / (300 - 200);
   } else {
     // sub 200 → considerăm 0%
     return 0;
