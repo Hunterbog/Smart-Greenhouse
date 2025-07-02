@@ -57,7 +57,7 @@ unsigned long windowIsOpenedTime = 0;
 #define VALID 0
 #define RELEY_ON 0
 #define RELEY_OFF 1
-#define DEBUG STD_ON
+#define DEBUG STD_OFF
 #define MAX_RETRY 3
 #define TIMEOUT_MS 10
 #define ACK 0x06
@@ -86,9 +86,9 @@ unsigned long windowIsOpenedTime = 0;
 #define LUMINA 11
 #define POMPA4 12
 
-#define TIME_1_HOUR (60UL * 1000UL)  // 1 hour = 3,600,000 ms
+#define TIME_1_HOUR (60UL * 60UL * 1000UL)  // 1 ora = 3,600,000 ms
 #define TIME_3_HOUR (3 * TIME_1_HOUR)
-#define TIME_10_MINUTES (10UL * 1000UL)  // 10 minutes = 600,000 ms
+#define TIME_10_MINUTES (10UL * 60UL * 1000UL)  // 10 minute = 600,000 ms
 #define TIME_20_MINUTES (2 * TIME_10_MINUTES)
 #define TIME_10_SECONDS (10000UL)
 #define TIME_7_SECONDS (7000UL)
@@ -149,8 +149,8 @@ static uint8_t index = 0;
 /*========================Resurse Haardware=======================*/
 #define DHTPIN A6
 #define DHTTYPE DHT22
-const int pinHigrometru1 = A0;  // intrare analogica senzor umiditate parcela 1
-const int pinHigrometru2 = A1;  // intrare analogica senzor umiditate parcela 2
+const int pinHigrometru1 = A1;  // intrare analogica senzor umiditate parcela 1
+const int pinHigrometru2 = A0;  // intrare analogica senzor umiditate parcela 2
 const int pinHigrometru3 = A2;  // intrare analogica senzor umiditate parcela 3
 const int pinUmiLvl = A9;       // intrare analogica senzor umiditate parcela 4
 #define trigPin 52
@@ -316,21 +316,18 @@ void setup() {
   windowServo.write(servoPos);
   prevServoTime = millis();
   // Configurare pini pentru senzori și actuatori
-  Serial.println(EEPROM.read(0));
-  // command = EEPROM.read(0);
 }
 
 void allowWindowToWork() {
   allowWindow = (allowWindow << 1) | digitalRead(rainPin);
 #if DEBUG == STD_ON
-  // Serial.println("Ploaie daca vad 0:");
-  // Serial.println((allowWindow & 0xF));
+  Serial.println("Ploaie daca vad 0:");
+  Serial.println((allowWindow & 0xF));
 #endif
 }
 
 void loop() {
   while (Serial3.available() > 0) {
-    // Serial.println("Eu");
     uint8_t octet = Serial3.read();
     uartByteReceived(octet);
   }
@@ -358,6 +355,7 @@ void loop() {
   updateTime();
 }
 
+/*************METODA FOLOSITA PT. A CITI INTENSITATEA LUMINII AMBIENTALE**************/
 void readLightSensor() {
   const int numSamples = 12;
   static int samples[numSamples] = { 0 };
@@ -390,31 +388,11 @@ void readWaterLvlHum() {
       index1 = 0;
       int median = getMedian(samples, numSamples);
       waterLvlHum = median;
-
-      // Serial.print("Water Level: ");
-      // Serial.println(waterLvlHum);
     }
-  }  //else {
-  //   index1 = 0; // reset other index
-  //   tempSamples[index2++] = analogRead(pinUmiLvl);
-
-  //   if (index2 == safeSamples) {
-  //     index2 = 0;
-  //     int median = getMedian(tempSamples, safeSamples);
-  //     int diff = abs(median - waterLvlHum);
-
-  //     if (diff <= 10) {
-  //       waterLvlHum = median;
-  //       Serial.print("Water Level (Relay ON, accepted): ");
-  //       Serial.println(waterLvlHum);
-  //     } else {
-  //       Serial.println("Reading ignored (Relay ON, unstable)");
-  //     }
-  //   }
-  // }
+  }
 }
 
-
+/*************METODA FOLOSITA PT. A CITI UMIDITATEA SOLULUI**************/
 void readMoistureSensor() {
   const int numSamples = 60;
   const int numSensors = 3;
@@ -422,7 +400,6 @@ void readMoistureSensor() {
   static int index = 0;
   static bool bufferReady = false;
 
-  // Read all sensors into the buffer
   samples[0][index] = analogRead(pinHigrometru1);
   samples[1][index] = analogRead(pinHigrometru2);
   samples[2][index] = analogRead(pinHigrometru3);
@@ -451,6 +428,7 @@ void readMoistureSensor() {
   }
 }
 
+/*************METODA FOLOSITA PT. A CITI UMIDITATEA SI TEMPERATURA**************/
 void readTemperatureHumiditySensor() {
   const int numSamples = 30;
   static float tempSamples[numSamples], humiditySamples[numSamples];
@@ -460,13 +438,11 @@ void readTemperatureHumiditySensor() {
   humiditySamples[index] = dht.readHumidity();
   index++;
 
-  // Process when buffer is full
   if (index >= numSamples) {
     bufferReady = true;
     index = 0;
   }
 
-  // Compute medians and print
   if (bufferReady) {
     setbit(FirstReadSensors, 2);
     dhtTemp = getMedian(tempSamples, numSamples);
@@ -482,6 +458,7 @@ void readTemperatureHumiditySensor() {
   }
 }
 
+/*************METODE FOLOSITE PT. A CALCULA APA DIN BAZIN INCEPUT**************/
 void readWaterLevel() {
   const int numSamples = 10;
   const int volumeAvgSamples = 10;
@@ -537,6 +514,8 @@ float Distance() {
   float duration = pulseIn(echoPin, HIGH);
   return duration * 0.034 / 2.0;
 }
+/*************METODE FOLOSITE PT. A CALCULA APA DIN BAZIN SFARSIT**************/
+
 
 // Logica pentru lumina artificială
 // - Daca nivelul de lumină este sub LOW_LIGHT_THRESHOLD, se pornește lumina artificială
@@ -556,7 +535,6 @@ void controlGrowLight() {
       digitalWrite(growLightPin, RELAY_ON);
       growLightState = true;
       artificialLightStartTime = millis();
-      //Serial.println("Lumina artificială pornită (lipsă lumină naturală).");
     }
   } else {
     // Oprim lumina artificială dacă nivelul se îmbunătățește sau se atinge durata maximă
@@ -564,7 +542,6 @@ void controlGrowLight() {
       if (lightLevel >= LOW_LIGHT_THRESHOLD || (millis() - artificialLightStartTime) >= MAX_ARTIFICIAL_LIGHT_DURATION) {
         digitalWrite(growLightPin, RELAY_OFF);
         growLightState = false;
-        //Serial.println("Lumina artificială oprită (lumina naturală a revenit sau durata maximă atinsă).");
       }
     }
   }
@@ -706,8 +683,6 @@ void applicationLogic(ControlMode mode) {
             if (testbit(FansState, 1) == 0) FansTime = millis();
           }
           IdleTimeFans = (FansState == FANS_OFF ? millis() : INVALID_TIMESTAMP);
-          Serial.println(IdleTimeFans);
-          Serial.println(FansTime);
           break;
 
         case VENTILATOR2:
@@ -722,8 +697,6 @@ void applicationLogic(ControlMode mode) {
             if (testbit(FansState, 0) == 0) FansTime = millis();
           }
           IdleTimeFans = (FansState == FANS_OFF ? millis() : INVALID_TIMESTAMP);
-          Serial.println(IdleTimeFans);
-          Serial.println(FansTime);
           break;
 
         case INCALZIRE1:
@@ -748,12 +721,9 @@ void applicationLogic(ControlMode mode) {
         case GEAM:
           Serial.println("GEAM");
           requireWindow = actuator.value;
-
           if (actuator.value == HIGH) allowWindow = ALLOWED;
           windowIsOpenedTime = (actuator.value == HIGH ? millis() : INVALID_TIMESTAMP);
           IdleTimeWindow = (actuator.value == LOW ? millis() : INVALID_TIMESTAMP);
-          Serial.println(requireWindow);
-          Serial.println(allowWindow);
           break;
 
         case LUMINA:
@@ -777,6 +747,7 @@ void applicationLogic(ControlMode mode) {
   }
 }
 
+/*************TEMPLATE FOLOSIT PT. A CALCULA VALOAREA MEDIANA INCEPUT**************/
 template<typename T>
 int partition(T *arr, int low, int high) {
   T pivot = arr[high];
@@ -817,8 +788,9 @@ T getMedian(T *arr, int size) {
   quickSort(sorted, 0, size - 1);
   return sorted[size / 2];
 }
+/*************TEMPLATE FOLOSIT PT. A CALCULA VALOAREA MEDIANA SFARSIT**************/
 
-
+/*************METODA PT. CALCULAREA CRC-ULUI INCEPUT**************/
 uint16_t computeCRC(uint8_t *data, size_t length) {
   uint16_t crc = 0xFFFF;
 
@@ -836,7 +808,10 @@ uint16_t computeCRC(uint8_t *data, size_t length) {
 
   return crc;
 }
+/*************METODA PT. CALCULAREA CRC-ULUI SFARSIT**************/
 
+
+/*************METODA PT A CONTROLA TEMPERATURA SI UMIDITATEA INCEPUT**************/
 void controlWeatherSystem() {
   bool isDay = (lightLevel > LOW_LIGHT_LEVEL);
 
@@ -923,7 +898,7 @@ void controlWeatherSystem() {
                                                  //Serial.println("Nivelul de umidate este Mediu");
         if (digitalRead(humidifierPin) == RELAY_OFF && dhtHumidity <= ((HumidityLowerLimit + HumidityUpperLimit) / 2.0) && allowHumToWork) {
           digitalWrite(humidifierPin, RELAY_ON);
-        } else if (digitalRead(humidifierPin) == RELAY_ON && dhtHumidity > ((HumidityLowerLimit + HumidityUpperLimit) / 2.0) + hysteresisBuffer) {
+        } else if (digitalRead(humidifierPin) == RELAY_ON && dhtHumidity > ((HumidityLowerLimit + HumidityUpperLimit) / 2.0) + hysteresisBuffer || !allowHumToWork) {
           digitalWrite(humidifierPin, RELAY_OFF);
         }
 
@@ -995,7 +970,7 @@ void controlWeatherSystem() {
           // Mai jos verific cum proedez pt. umidiifator
           if (digitalRead(humidifierPin) == RELAY_OFF && dhtHumidity <= ((HumidityLowerLimit + HumidityUpperLimit) / 2.0) && allowHumToWork) {
             digitalWrite(humidifierPin, RELAY_ON);
-          } else if (digitalRead(humidifierPin) == RELAY_ON && dhtHumidity > ((HumidityLowerLimit + HumidityUpperLimit) / 2.0) + hysteresisBuffer) {
+          } else if (digitalRead(humidifierPin) == RELAY_ON && dhtHumidity > ((HumidityLowerLimit + HumidityUpperLimit) / 2.0) + hysteresisBuffer || !allowHumToWork) {
             digitalWrite(humidifierPin, RELAY_OFF);
           }
           //Mai jos verific daca inchid geamul si ventilatorul
@@ -1077,8 +1052,9 @@ void controlWeatherSystem() {
       break;
   }
 }
+/*************METODA PT A CONTROLA TEMPERATURA SI UMIDITATEA SFARSIT**************/
 
-
+/*************METODA PT A TRIMITE STARILE ACTUATORILOR CATRE ESP8266 INCEPUT**************/
 void updateSerialBufferActuators() {
   if (countOfChangedMode == 3) {
     countOfChangedMode = 0;
@@ -1122,8 +1098,10 @@ void updateSerialBufferActuators() {
   } else {
   }
 }
+/*************METODA PT A TRIMITE STARILE ACTUATORILOR CATRE ESP8266 SFARSIT**************/
 
 
+/*************METODA PT A CONTROLA DATELE DE LA SENZORI CE LE TRIMIT CATRE ESP8266 INCEPUT**************/
 void updateSerialBufferSensors() {
   /* -------- header -------- */
   Tx_BufferSensors[0] = FRAME_START;
@@ -1165,8 +1143,10 @@ void updateSerialBufferSensors() {
 
   SEND_FRAME(Tx_BufferSensors);
 }
+/*************METODA PT A CONTROLA DATELE DE LA SENZORI CE LE TRIMIT CATRE ESP8266 SFARSIT**************/
 
 
+/*************FSM PT DATELE CE LE PRIMESC SERIAL INCEPUT**************/
 void uartByteReceived(uint8_t octet) {
   switch (rxState) {
     case WAIT_START:
@@ -1203,8 +1183,9 @@ void uartByteReceived(uint8_t octet) {
       break;
   }
 }
+/*************FSM PT DATELE CE LE PRIMESC SERIAL SFARSIT**************/
 
-
+/*************METODE PT A CONTROLA DATELE PRIMITE DE LA ESP8266 INCEPUT**************/
 void handleActuatorFrame(const uint8_t *data) {
   switch (data[0]) {
     case CONTROL_SERA:
@@ -1233,21 +1214,25 @@ void handleActuatorFrame(const uint8_t *data) {
   memset(rxBuf, 0, RX_BUF_MAX);
 }
 
+
 void handleHarvestFrame(const uint8_t *data) {
 
   if (data[0] == 'P') {
     command = START;
-    Serial.println("Scrisai in eeprom");
-    //EEPROM.write(0, RUNNING);
+#ifdef DEBUG == STD_ON
+    Serial.println("Pornii sera");
+#endif
   } else if (data[0] == 'O') {
-    Serial.println("Scrisai in eeprom");
-    //EEPROM.write(0, IDLE);
+#ifdef DEBUG == STD_ON
+    Serial.println("Oprii sera");
+#endif
     command = STOP;
     return;
   } else if (data[0] == 'R') {
     command = RUNNING;
-    Serial.println("Scrisai in eeprom");
-    //EEPROM.write(0, RUNNING);
+#ifdef DEBUG == STD_ON
+    Serial.println("Sera ruleaza");
+#endif
   }
 
   TemperatureDayLowerLimit = data[1];
@@ -1267,7 +1252,10 @@ void handleHarvestFrame(const uint8_t *data) {
 
   memset(rxBuf, 0, RX_BUF_MAX);
 }
+/*************METODE PT A CONTROLA DATELE PRIMITE DE LA ESP8266 SFARSIT**************/
 
+
+/*************METODE PT A CONTROLA SISTEMUL DE CALDURA INEPUT**************/
 
 void ControlHeatingSystem(uint8_t state) {
   if (state == STD_ON) {
@@ -1284,7 +1272,8 @@ void ControlHeatingSystem(uint8_t state) {
     heating1LastValue = heating2LastValue = 0;
   }
 }
-bool ok = false;
+/*************METODE PT A CONTROLA SISTEMUL DE CALDURA SFARSIT**************/
+
 void allowHumidifierToWork() {
   // Turn OFF conditions
 
@@ -1298,13 +1287,10 @@ void allowHumidifierToWork() {
     return;
   }
 
-  // Turn ON condition
   if (waterVolume >= VOLUM_SUFICIENT_APA && waterLvlHum <= LOW_LVL_HUM) {
     digitalWrite(pumpPin4, HIGH);
     timeHumOn = millis();
     statePump4 = true;
-    if (!ok) Serial.println("Pump ON");
-    ok = true;
   }
 }
 
@@ -1369,7 +1355,9 @@ void updateTime() {
     }
   }
 }
+
 /**************COD CEAS******************/
+
 
 bool writeFrameWithRetry(const uint8_t *buf, size_t len) {
   for (uint8_t attempt = 0; attempt < MAX_RETRY; ++attempt) {
@@ -1393,6 +1381,9 @@ bool writeFrameWithRetry(const uint8_t *buf, size_t len) {
   return false;
 }
 
+
+
+/*************METODA PT A OPRI CONSUMATORII START**************/
 void shutdownAllActuators() {
   digitalWrite(pumpPin1, LOW);
   digitalWrite(pumpPin2, LOW);
@@ -1416,6 +1407,10 @@ void shutdownAllActuators() {
   IdleTimeWindow = IdleTimeFans = IdleTimeWindow = windowIsOpenedTime = 0;
 }
 
+/*************METODA PT A OPRI CONSUMATORII SFARSIT**************/
+
+
+/*************METODA PT A CITI DATELE DE LA SENZORI INCEPUT**************/
 void readAllSensors() {
   // Citire senzor DHT22 la intervale specifice
   if (millis() - previousDHT22Millis >= DHT22Update) {
@@ -1447,8 +1442,10 @@ void readAllSensors() {
     prevWaterLevel = millis();
     readWaterLevel();
   }
-}
+/*************METODA PT A CITI DATELE DE LA SENZORI SFARSIT**************/}
 
+
+/*************METODA PT TRIMITERE DATE SERIAL START**************/
 void updateCommunicationBuffers() {
   if (millis() - prevUpdateTxBufferActuators >= UpdateTxBufferActuators && (FirstReadSensors == FIRST_SENSORS_READ) && mode == AUTOMATED) {
     prevUpdateTxBufferActuators = millis();
@@ -1459,6 +1456,7 @@ void updateCommunicationBuffers() {
     updateSerialBufferSensors();
   }
 }
+/*************METODA PT TRIMITERE DATE SERIAL SFARSIT**************/
 
 uint8_t mapWaterLevel(uint16_t waterLvlHum) {
   if (waterLvlHum >= 490) return 100;
