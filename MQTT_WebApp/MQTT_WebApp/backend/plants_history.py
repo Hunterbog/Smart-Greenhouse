@@ -125,7 +125,8 @@ def harvest_active_crop():
                 "incalzire2": "0",
                 "ventilator1": "0",
                 "ventilator2": "0",
-                "lumina": "OFF"
+                "lumina": "OFF",
+                "pompa4": "OFF"
             }
 
             for actuator, value in actuator_defaults.items():

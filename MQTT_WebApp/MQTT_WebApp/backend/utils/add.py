@@ -28,7 +28,7 @@ for i in range(total_minutes):
 
     doc = {
         "timestamp": timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-        "active_crop_id": ObjectId("684b1f83b8077624350426ae"),
+        "active_crop_id": ObjectId("6864246d73a382b0f095794f"),
         "soil1": soil1,
         "soil2": soil2,
         "soil3": soil3,

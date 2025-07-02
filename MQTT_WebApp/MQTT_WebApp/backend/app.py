@@ -9,13 +9,14 @@ import logging
 from random import random
 from services.mqtt_handler import mqtt_client
 import json
-from datetime import datetime
 from graphs import graphs_bp
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
+import threading
 from bson import ObjectId
 
 STATUS_FILE = 'status.json'
-#logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 app = Flask(__name__, template_folder='../frontend/templates', static_folder='../frontend/static')
 CORS(app)
 
@@ -23,23 +24,47 @@ client = MongoClient('localhost', 27017)
 db = client.flask_database
 senzori = db.senzori
 
+last_sensor_data_time = None
 app.register_blueprint(plants_history_bp, )
 app.register_blueprint(graphs_bp)
 
+def monitor_sensor_timeout():
+    global last_sensor_data_time
+    logging.info("monitor_sensor_timeout() started")
+
+    while True:
+        try:
+            time.sleep(60)
+            if last_sensor_data_time is None:
+                logging.warning("Nu au fost primite date de la senzori.")
+                continue
+            time_diff = datetime.now() - last_sensor_data_time
+            active_crop = db.plants_history.find_one({"active": True})
+            if not active_crop:
+                continue
+            if time_diff > timedelta(minutes=5):
+                    save_status("mod", "OFF")
+
+        except Exception as e:
+            logging.exception("Exceptie:")
+
+
+
 def on_message(client, userdata, msg):
     try:
+        global last_sensor_data_time
         payload = json.loads(msg.payload.decode())
         timestamp = datetime.now()
-       
+        last_sensor_data_time = datetime.now()
         active_crop = db.plants_history.find_one({"active": True})
         if msg.topic == "myhome/esp8266/data":
             formatted_timestamp = timestamp.strftime('%Y-%m-%d %H:%M:%S')
             sensor_doc = {
                 "timestamp": formatted_timestamp,
                 "active_crop_id": active_crop["_id"] if active_crop else None,
-                "soil1": payload.get("soil1"),
-                "soil2": payload.get("soil2"),
-                "soil3": payload.get("soil3"),
+                "soil1": payload.get("soil1Percent"),
+                "soil2": payload.get("soil2Percent"),
+                "soil3": payload.get("soil3Percent"),
                 "waterLevel": payload.get("waterLevel"),
                 "waterVolume": payload.get("waterVolume"),
                 "temperature": payload.get("temperature"),
@@ -48,9 +73,11 @@ def on_message(client, userdata, msg):
             }
 
             senzori.insert_one(sensor_doc)
-            logging.info(f"Sensor data inserted: {sensor_doc}")
+            # logging.info(f"Sensor data inserted: {sensor_doc}")
 
         elif msg.topic == "myhome/esp8266/actuators/all":
+            payload = json.loads(msg.payload.decode()) 
+            # print("==> Payload decodat:", payload)
             data = load_all_statuses()
             for actuator_name, status in payload.items():
                 data[actuator_name] = status
@@ -61,8 +88,6 @@ def on_message(client, userdata, msg):
         logging.error("Failed to parse MQTT payload (invalid JSON).")
     except Exception as e:
         logging.exception("Unexpected error in on_message handler.")
-
-
 
 mqtt_client.on_message = on_message
 mqtt_client.subscribe("myhome/esp8266/actuators/all")
@@ -176,7 +201,11 @@ def latest_water_level():
     except Exception as e:
         print("Exception:", str(e))  
         return jsonify({"error": str(e)}), 500
+# @app.route('/favicon.ico')
+# def favicon():
+#     return '', 204 
 
 
 if __name__ == '__main__':
+    threading.Thread(target=monitor_sensor_timeout, daemon=True).start()
     app.run(debug=True, host='0.0.0.0', port=5000)

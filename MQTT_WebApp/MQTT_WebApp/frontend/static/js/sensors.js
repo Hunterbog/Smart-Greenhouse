@@ -15,21 +15,34 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
 
             if (result.error === "no_crop") {
-                container.innerHTML = '<p><strong>Nu ai nicio recoltă plantată!</strong></p>';
+                container.innerHTML =
+                    '<div style="text-align:center; padding:1em; background-color:#ffffff; color:#2e7d32; ' +
+                    'border:1px solid #c8e6c9; border-radius:5px; margin:1em auto; width:fit-content;">' +
+                    '<p><strong>Nu ai nicio recoltă plantată!</strong></p>' +
+                    '</div>';
                 return;
             }
 
-            if (result.error === "no_sensor") {
-                container.innerHTML = '<p><strong>Nu sunt date de la senzori</strong></p>';
+            if (result.error === 'no_sensor') {
+                container.innerHTML =
+                    '<div style="text-align:center; padding:1em; background-color:#ffffff; color:#2e7d32; ' +
+                    'border:1px solid #c8e6c9; border-radius:5px; margin:1em auto; width:fit-content;">' +
+                    '<strong>Nu sunt date de la senzori</strong>' +
+                    '</div>';
                 return;
             }
 
             const sensor = result.sensor_data;
 
             if (!sensor) {
-                container.innerHTML = '<p><strong>Nu sunt date de la senzori</strong></p>';
+                container.innerHTML =
+                    '<div style="text-align:center; padding:1em; background-color:#ffffff; color:#2e7d32; ' +
+                    'border:1px solid #c8e6c9; border-radius:5px; margin:1em auto; width:fit-content;">' +
+                    '<strong>Nu sunt date de la senzori</strong>' +
+                    '</div>';
                 return;
             }
+
 
             document.getElementById('temperature').textContent = `${sensor.temperature.toFixed(1)} °C`;
             document.getElementById('humidity').textContent = `${sensor.humidity.toFixed(1)}%`;

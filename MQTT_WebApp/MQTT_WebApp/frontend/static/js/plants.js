@@ -1,18 +1,18 @@
 
-async function plantCrop(plant_type_id) {
-  const response = await fetch('/plants_history', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plant_type_id })
-  });
+// async function plantCrop(plant_type_id) {
+//   const response = await fetch('/plants_history', {
+//     method: 'POST',
+//     headers: { 'Content-Type': 'application/json' },
+//     body: JSON.stringify({ plant_type_id })
+//   });
 
-  if (response.ok) {
-    location.reload();
-  } else {
-    const data = await response.json();
-    alert(data.error || "Eroare la salvare!");
-  }
-}
+//   if (response.ok) {
+//     location.reload();
+//   } else {
+//     const data = await response.json();
+//     alert(data.error || "Eroare la salvare!");
+//   }
+// }
 
 async function markAsHarvested() {
   const confirmare = confirm("Ești sigur că vrei să oprești sera și să marchezi cultura ca recoltată?");
@@ -169,13 +169,10 @@ function initSliders(savedData = null) {
 
     let start = s.defaultStart;
 
-    if (savedData && savedData[s.key] && savedData[s.key].includes('-')) {
+    if (savedData && savedData[s.key]) {
       const parts = savedData[s.key].split('-').map(Number);
-      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
         start = parts;
-      }
     }
-
     noUiSlider.create(slider, {
       start,
       connect: true,
@@ -222,4 +219,13 @@ function setSlidersFromServer(data) {
   });
 }
 
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('slider-temp-day')) {
+    if (!window.slidersInitialized) {
+      initSliders(null);
+      window.slidersInitialized = true;
+    }
+  }
+});
 
