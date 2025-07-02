@@ -4,7 +4,7 @@
 #include "arduino_base64.hpp"
 #include <BearSSLHelpers.h>
 
-/******************CONSTANTS START***************************/
+/******************CONSTANTE START***************************/
 #define SEND_FRAME(pkt) writeFrameWithRetry((uint8_t*)&(pkt), sizeof(pkt))
 #define DEBUG STD_OFF
 #define STD_ON HIGH
@@ -37,7 +37,7 @@
 const char ACTUATOR_PKT_ID = 'A';
 const char HARVEST_PKT_ID = 'H';
 const uint16_t poly = 0x1021;
-/******************CONSTANTS END************************/
+/******************CONSTANTE END************************/
 
 /********VARIABILE PT FSM SERIAL INCEPUT***********/
 #define RX_BUF_MAX 32
@@ -78,46 +78,14 @@ typedef struct
 /******************VARIABLES END************************/
 
 // === WiFi Credentials ===
-const char* ssid = "DIGI-88Ju";
-const char* password = "wF4D7edc";
+const char* ssid = "Bogdan";
+const char* password = "rapid1923";
 
 // === MQTT Broker Config ===
 const char* mqttServer = "5852f7b9b4c348afb716480914b3ea19.s1.eu.hivemq.cloud";
 const int mqttPort = 8883;
 const char* mqttUser = "hunterbog";
 const char* mqttPassword = "Ashford1875";
-// const char* mqttServerCert =
-// "-----BEGIN CERTIFICATE-----\n"
-// "MIIFPDCCBCSgAwIBAgISBlvO6+BhAYoAodu3Tizj+vEDMA0GCSqGSIb3DQEBCwUA\n"
-// "MDMxCzAJBgNVBAYTAlVTMRYwFAYDVQQKEw1MZXQncyBFbmNyeXB0MQwwCgYDVQQD\n"
-// "EwNSMTEwHhcNMjUwNDIyMjA1OTMwWhcNMjUwNzIxMjA1OTI5WjAfMR0wGwYDVQQD\n"
-// "DBQqLnMxLmV1LmhpdmVtcS5jbG91ZDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC\n"
-// "AQoCggEBAKVuz2sMPmxx2w/f81/YAEKTbNZMJPk2+ooLFg5hxXvReF+AwIT4XvZ+\n"
-// "MLhSKvFxmghJF+BB9WyhqrcJLGDCP4s6SOLWTYixEoTcaLUviqqn+06kYqDJ6E83\n"
-// "NGsc7T42DlPnzqcZZjPRed9rt4CP3RgeZlWyYZgiD8FoJG9gie8ytihF/FkGZT8T\n"
-// "N4Vkl2vQa3mfBWeeKrcuhcLPxqIWDz/30iYfLtEe5JYYScoCKTXcP9SUStjpR8pD\n"
-// "vfOWdvasOAuBy7yBbx01/4lcQt50hfbhTR/K14/D4rNkuuvU7ktSQnoxVXC8YDwG\n"
-// "zkny10DFt65mVYLNZcBQtOLHHOZGV30CAwEAAaOCAlwwggJYMA4GA1UdDwEB/wQE\n"
-// "AwIFoDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDAYDVR0TAQH/BAIw\n"
-// "ADAdBgNVHQ4EFgQUgsEjDU35+EWJKBsFxJ0lM0PXMi4wHwYDVR0jBBgwFoAUxc9G\n"
-// "pOr0w8B6bJXELbBeki8m47kwVwYIKwYBBQUHAQEESzBJMCIGCCsGAQUFBzABhhZo\n"
-// "dHRwOi8vcjExLm8ubGVuY3Iub3JnMCMGCCsGAQUFBzAChhdodHRwOi8vcjExLmku\n"
-// "bGVuY3Iub3JnLzAzBgNVHREELDAqghQqLnMxLmV1LmhpdmVtcS5jbG91ZIISczEu\n"
-// "ZXUuaGl2ZW1xLmNsb3VkMBMGA1UdIAQMMAowCAYGZ4EMAQIBMC0GA1UdHwQmMCQw\n"
-// "IqAgoB6GHGh0dHA6Ly9yMTEuYy5sZW5jci5vcmcvNC5jcmwwggEFBgorBgEEAdZ5\n"
-// "AgQCBIH2BIHzAPEAdgAN4fIwK9MNwUBiEgnqVS78R3R8sdfpMO8OQh60fk6qNAAA\n"
-// "AZZfgg0JAAAEAwBHMEUCIQCENUD4FWITFwnyxsOr4D54wR+LUgZyEjwMd+GwHiha\n"
-// "agIgOdeXyofPYtzl2DajwNvR+6XbCikAbbQvZTZ4Eahu2coAdwDM+w9qhXEJZf6V\n"
-// "m1PO6bJ8IumFXA2XjbapflTA/kwNsAAAAZZfghU/AAAEAwBIMEYCIQDu8/zVPYFl\n"
-// "bmd1vt5Fqk0sXJLV+MEFhQH75Kn6jlvtFgIhAOA8DAE1QBWXxmYSyFXw9UvC4EvH\n"
-// "4+VR1cA8merS5vl4MA0GCSqGSIb3DQEBCwUAA4IBAQBVET3hPDZX/protLVPy/vX\n"
-// "4i41k5J3teGokrEMu/TdMN6i/W7555Vsgl1zXj5a1f+4FsQ2Nfh1sDMuz/Djzgxp\n"
-// "M8HMifB5HJTX+slAuElLzlQFCxMVNn3+b4BgpxvwA3srrXGudF3cya0qztg5lNju\n"
-// "y6zAjYfxMQA0uHtCSuxKk033uFkeBv1ui3XWC1JcISbsoF47RVBp/a5O3kBr+j18\n"
-// "k5qL7dWcKWr2S9JctGCH4ezYNmAG9W6w/KoTHH3HJCWrTzziJutY48Rwt4gJcS1s\n"
-// "OSV8OT5pGKVpVnKSSOz4ItIaqis6fdetTiba38lUyzjDNklYL72Ye4Ck+qvjyc33\n"
-// "-----END CERTIFICATE-----\n";
-
 
 // === MQTT Topics ===
 const char* mqttTopicData = "myhome/esp8266/data";
@@ -153,7 +121,7 @@ void connectWiFi() {
 void connectMQTT() {
   while (!mqttClient.connected()) {
     if (mqttClient.connect("esp8266_client_001", mqttUser, mqttPassword)) {
-#if (DEBUG == STD_ON)    
+#if (DEBUG == STD_ON)
       Serial.println("Conectat la Mqtt!");
 #endif
       mqttClient.subscribe(mqttTopicSubscribe);
@@ -413,9 +381,9 @@ void handleSensorFrame(const uint8_t* data) {
   uint16_t soil2 = (data[2] << 8) | data[3];
   uint16_t soil3 = (data[4] << 8) | data[5];
 
-  uint8_t soil1Percent = map(soil1, 1015, 150, 0, 100);
-  uint8_t soil2Percent = map(soil2, 1015, 150, 0, 100);
-  uint8_t soil3Percent = map(soil3, 1015, 150, 0, 100);
+  uint8_t soil1Percent = constrain(map(soil1, 1015, 150, 0, 100), 0, 100);
+  uint8_t soil2Percent = constrain(map(soil2, 1015, 150, 0, 100), 0, 100);
+  uint8_t soil3Percent = constrain(map(soil3, 1015, 150, 0, 100), 0, 100);
 
   uint8_t waterLevel = data[6];
 
@@ -427,7 +395,7 @@ void handleSensorFrame(const uint8_t* data) {
   float dhtHumidity = humRaw / 100.0f;
 
   uint16_t lightLevel = (data[13] << 8) | data[14];
-   uint8_t percentlightLevel = min(100, (lightLevel * 100) / 1000);
+  uint8_t percentlightLevel = min(100, (lightLevel * 100) / 600);
 
   String sensorPayload = "{";
   sensorPayload += "\"soil1Percent\":" + String(soil1Percent) + ",";
@@ -460,7 +428,6 @@ void handleActuatorFrame(const uint8_t* data) {
   bool pump4 = digMask & 0x08;
   bool humidifier = digMask & 0x10;
   bool growLight = digMask & 0x20;
-
 
   String actuatorPayload = "{";
   actuatorPayload += "\"geam\":\"" + String(geam ? "ON" : "OFF") + "\",";
